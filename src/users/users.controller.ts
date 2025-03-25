@@ -1,0 +1,87 @@
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import * as XLSX from 'xlsx';
+import { ImportFileExcelUser } from './dto/import-excel.dto';
+import { generateUsername } from 'src/utils/generate-username';
+import { SchoolsService } from 'src/schools/schools.service';
+import { GradeService } from 'src/grade/grade.service';
+import { SubjectsService } from 'src/subjects/subjects.service';
+
+@Controller('users')
+export class UsersController {
+    constructor(private readonly userService: UsersService,
+        private readonly gradeService: GradeService,
+        private readonly schoolService: SchoolsService,
+        private readonly subjectService: SubjectsService
+    ) { }
+    @Post('import-excel')
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('file'))
+    async ImportExecl(@UploadedFile() file: Express.Multer.File, @Body() importFileExcel: ImportFileExcelUser) {
+        // Đọc dữ liệu từ buffer của file Excel
+        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Chuyển đổi sheet thành JSON
+        const users = XLSX.utils.sheet_to_json(worksheet);
+        const typeSchool = {
+            'THPT': ['10', '11', '12'],
+            'THCS': ['6', '7', '8', '9'],
+            'Tiểu học': ['1', '2', '3', '4', '5'],
+            'TH&THCS': ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            'THCS&THPT': ['6', '7', '8', '9','10', '11', '12']
+        }
+
+        let arraySuccess = [];
+        let arrayFail = [];
+
+        const item = users[0];
+
+
+        let count = 0
+        for (const row of users) {
+
+            const fullName = row['HỌ TÊN GIÁO VIÊN']?.toString().trim();
+            const schoolName = row['TÊN TRƯỜNG']?.toString().trim();
+            const gradeLevels = typeSchool[row['LOẠI TRƯỜNG']] || [];
+            const subjectNames = row['MÔN HỌC']?.split(',').map((s: string) => s.trim()) || [];
+            // Tạo hoặc tìm trường
+            const schoolId = await this.schoolService.findOrCreateByName(schoolName, row['LOẠI TRƯỜNG']);
+            // Tạo hoặc tìm các cấp học
+            const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels, schoolId);
+
+            // // Tạo hoặc tìm các môn học
+            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds);
+            try {
+                const userDto: CreateUserDto = {
+                    fullName,
+                    username: generateUsername(row['LOẠI TRƯỜNG'], schoolName, fullName),
+                    password: '1',
+                    schoolId,
+                    gradeIds,
+                    subjectIds,
+                };
+                const user = await this.userService.create(userDto);
+                count++;
+                if (user) {
+                    arraySuccess.push(user, count);
+                }
+            } catch (error) {
+                console.log(error)
+                arrayFail.push({
+                    row,
+                    error: error.message,
+                })
+            }
+        }
+        return {
+            success: arraySuccess,
+            fail: arrayFail,
+        }
+    }
+}

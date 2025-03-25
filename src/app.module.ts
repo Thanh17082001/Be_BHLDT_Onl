@@ -3,6 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from 'src/config/configuration';
 import { ExamplesModule } from './examples/examples.module';
+import { UsersModule } from './users/users.module';
+import { SchoolsModule } from './schools/schools.module';
+import { GradeModule } from './grade/grade.module';
+import { SubjectsModule } from './subjects/subjects.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -27,13 +32,12 @@ import { ExamplesModule } from './examples/examples.module';
             synchronize: true,
             autoLoadEntities: true,
           };
-          console.log(dbConfig, 'tttttt');
           return connection;
         } catch (error) {
           console.log(error);
         }
       },
-    }), ExamplesModule
+    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule
   ],
   controllers: [],
   providers: [],

@@ -1,19 +1,22 @@
-import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Generated, Column } from 'typeorm';
 
-export abstract class BaseEntity {
+import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Generated, Column, ManyToOne, JoinColumn, Entity, BaseEntity } from 'typeorm';
+@Entity()
+export abstract class AbstractEntity {
     @PrimaryGeneratedColumn()
-    id: number;
+    public id: number;
+
 
     @Generated('uuid') // Tạo UUID tự động
     @Column()
-    uuid: string;
+    public uuid: string;
 
     @CreateDateColumn()
-    createdAt: Date;
+    public createdAt: Date;
 
     @UpdateDateColumn()
-    updatedAt: Date;
+    public updatedAt: Date;
 
     @DeleteDateColumn()
-    deletedAt?: Date; // Xóa mềm
+    public deletedAt?: Date; // Xóa mềm
 }
+
