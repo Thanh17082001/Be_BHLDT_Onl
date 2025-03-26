@@ -2,22 +2,29 @@ import { SubjectsService } from './subjects.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
 
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Subject } from './entities/subject.entity';
+import { Roles } from 'src/role/role.decorator';
+import { Role } from 'src/role/role.enum';
+import { User } from 'src/users/entities/user.entity';
 
 @Controller('subjects')
 export class SubjectsController {
   constructor(private readonly examplesService: SubjectsService) { }
 
   @Post()
-  create(@Body() createSubjectDto: CreateSubjectDto) {
-    return this.examplesService.create(createSubjectDto);
+  @Roles(Role.TEACHER)
+  create(@Body() createSubjectDto: CreateSubjectDto, @Req() request: Request) {
+    const user:User = request['user'] ?? null;
+    return this.examplesService.create(createSubjectDto, user);
   }
 
   @Get()
-  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Subject>) {
-    return this.examplesService.findAll(pageOptionDto, query);
+    @Roles(Role.TEACHER)
+  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Subject>, @Req() request: Request) {
+    const user = request['user'] ?? null;
+    return this.examplesService.findAll(pageOptionDto, query, user);
   }
 
   @Get(':id')

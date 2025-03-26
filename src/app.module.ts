@@ -8,6 +8,10 @@ import { SchoolsModule } from './schools/schools.module';
 import { GradeModule } from './grade/grade.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { AuthModule } from './auth/auth.module';
+import { RoleModule } from './role/role.module';
+import { AuthGuard } from './auth/auth.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { TopicsModule } from './topics/topics.module';
 
 @Module({
   imports: [
@@ -37,9 +41,14 @@ import { AuthModule } from './auth/auth.module';
           console.log(error);
         }
       },
-    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule
+    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule, RoleModule, TopicsModule
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD, // Đăng ký AuthGuard cho tất cả các route
+      useClass: AuthGuard,
+    },
+  ],
 })
 export class AppModule {}

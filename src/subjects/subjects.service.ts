@@ -10,16 +10,21 @@ import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
 import { Subject } from './entities/subject.entity';
 import { Grade } from 'src/grade/entities/grade.entity';
 import { GradeService } from 'src/grade/grade.service';
+import { User } from 'src/users/entities/user.entity';
+import { Role } from 'src/role/role.enum';
+import { School } from 'src/schools/entities/school.entity';
 
 @Injectable()
 export class SubjectsService {
   constructor(
     @InjectRepository(Subject) private repo: Repository<Subject>,
     @InjectRepository(Grade) private repoGrade: Repository<Grade>,
+    @InjectRepository(School) private repoSchool: Repository<School>,
     private gradeService: GradeService,
 
   ) { }
-  async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
+  async create(createSubjectDto: CreateSubjectDto, user: User): Promise<Subject> {
+    createSubjectDto.schoolId = user.school.id;
     const { name,gradeId } = createSubjectDto;
     if (await this.repo.findOne({ where: { name } })) {
       throw new HttpException('Tên đã tồn tại', 409);
@@ -32,37 +37,57 @@ export class SubjectsService {
     return await this.repo.save(newSubject);
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<Subject>): Promise<PageDto<Subject>> {
-    const queryBuilder = this.repo.createQueryBuilder('subject').leftJoinAndSelect('subject.grade', 'grade');;
+  async findAll(
+    pageOptions: PageOptionsDto,
+    query: Partial<Subject>,
+    user: User
+  ): Promise<PageDto<Subject>> {
+    const queryBuilder = this.repo.createQueryBuilder('subject')
+      .leftJoinAndSelect('subject.grade', 'grade')
+      .leftJoinAndSelect('subject.school', 'school') // Lấy thông tin trường
+      .leftJoinAndSelect('subject.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
+
     const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search'];
+
+    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
-      const arrayQuery: string[] = Object.keys(query);
-      arrayQuery.forEach((key) => {
+      Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
           queryBuilder.andWhere(`subject.${key} = :${key}`, { [key]: query[key] });
         }
       });
     }
 
-    //search document
+    // 🎯 Phân quyền dữ liệu
+    if (user.role === Role.TEACHER) {
+      console.log('đaa');
+      // Giáo viên lấy các môn thuộc trường của họ + các môn họ phụ trách
+      queryBuilder.andWhere('(users.id = :userId)', {
+        userId: user.id
+      });
+    } else if (user.role === Role.PRINCIPAL) {
+      // Hiệu trưởng lấy các môn của trường họ quản lý
+      queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
+    }
+
+    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {
       queryBuilder.andWhere(`LOWER(unaccent("subject".name)) ILIKE LOWER(unaccent(:search))`, {
         search: `%${search}%`,
       });
     }
 
-
-    queryBuilder.orderBy(`subject.createdAt`, order)
-      .skip(skip)
-      .take(limit);
+    // 🎯 Phân trang và sắp xếp
+    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(limit);
 
     const itemCount = await queryBuilder.getCount();
-    const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
     const { entities } = await queryBuilder.getRawAndEntities();
 
-    return new PageDto(entities, pageMetaDto);
+    return new PageDto(entities, new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }));
   }
+
+
 
   async findOne(id: number): Promise<ItemDto<Subject>> {
 
@@ -73,7 +98,7 @@ export class SubjectsService {
     return new ItemDto(example);
   }
 
-  async findOrCreateByNames(names: string[], gradeIds: number[]): Promise<number[]> {
+  async findOrCreateByNames(names: string[], gradeIds: number[], schoolId: number): Promise<number[]> {
     if (!gradeIds.length || !names.length) {
       return [];
     }
@@ -83,6 +108,8 @@ export class SubjectsService {
     if (!grades.length) {
       throw new Error('Không tìm thấy khối lớp hợp lệ');
     }
+
+    const school = await this.repoSchool.findOne({ where: { id: schoolId } });
 
     // Chuẩn hóa danh sách tên môn học theo `name + grade.name`
     const formattedNames = grades.flatMap(grade =>
@@ -94,6 +121,7 @@ export class SubjectsService {
     const existingSubjects = await this.repo.find({
       where: formattedNames.map(fullName => ({
         name: fullName,
+        school: { id: schoolId },
       })),
       relations: ['grade'],
       select: ['id', 'name', 'grade'],
@@ -111,14 +139,13 @@ export class SubjectsService {
         .map(name => {
           const fullName = `${name} lớp ${grade.name}`;
           if (!existingMap.has(fullName)) {
-            return this.repo.create({ name: fullName, grade });
+            return this.repo.create({ name: fullName, grade, school });
           }
           return null;
         })
         .filter(subject => subject !== null)
     );
 
-    console.log(newSubjects, '❌ Môn học chưa tồn tại');
 
     // Lưu môn học mới nếu có
     if (newSubjects.length > 0) {

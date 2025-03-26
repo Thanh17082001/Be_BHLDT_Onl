@@ -10,8 +10,11 @@ import { generateUsername } from 'src/utils/generate-username';
 import { SchoolsService } from 'src/schools/schools.service';
 import { GradeService } from 'src/grade/grade.service';
 import { SubjectsService } from 'src/subjects/subjects.service';
+import { Public } from 'src/auth/auth.decorator';
+import { ChangePassDto } from './dto/change-pass.dto';
 
 @Controller('users')
+@Public()
 export class UsersController {
     constructor(private readonly userService: UsersService,
         private readonly gradeService: GradeService,
@@ -23,6 +26,8 @@ export class UsersController {
     @UseInterceptors(FileInterceptor('file'))
     async ImportExecl(@UploadedFile() file: Express.Multer.File, @Body() importFileExcel: ImportFileExcelUser) {
         // Đọc dữ liệu từ buffer của file Excel
+
+
         const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
@@ -56,12 +61,13 @@ export class UsersController {
             const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels, schoolId);
 
             // // Tạo hoặc tìm các môn học
-            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds);
+            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, schoolId);
             try {
                 const userDto: CreateUserDto = {
                     fullName,
                     username: generateUsername(row['LOẠI TRƯỜNG'], schoolName, fullName),
                     password: '1',
+                    role:row['Quyền'] ?? 'Giáo viên',
                     schoolId,
                     gradeIds,
                     subjectIds,
@@ -72,10 +78,9 @@ export class UsersController {
                     arraySuccess.push(user, count);
                 }
             } catch (error) {
-                console.log(error)
                 arrayFail.push({
-                    row,
-                    error: error.message,
+                    resutl:row,
+                    error: error.response,
                 })
             }
         }
@@ -83,5 +88,28 @@ export class UsersController {
             success: arraySuccess,
             fail: arrayFail,
         }
+    }
+
+    @Post('admin')
+    async create() {
+        const userDto: CreateUserDto = {
+            fullName:'Quản Trị Viên',
+            username: 'admin',
+            role:'Quản trị viên',
+            password: '1',
+            schoolId:1,
+            gradeIds:[],
+            subjectIds: [],
+            isAdmin: true,
+        };
+        const user = await this.userService.create(userDto);
+        return user;
+    }
+
+    @Post('change-password')
+    async changePassword(@Body() dto: ChangePassDto) {
+        const { userId, password, newPassword } = dto;
+        const user = await this.userService.changePassword({ userId, password, newPassword });
+        return user;
     }
 }

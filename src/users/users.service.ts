@@ -1,4 +1,4 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
@@ -11,6 +11,7 @@ import { UserUtil } from 'src/common/bryct/config.bryct';
 import { School } from 'src/schools/entities/school.entity';
 import { Grade } from 'src/grade/entities/grade.entity';
 import { Subject } from 'src/subjects/entities/subject.entity';
+import { ChangePassDto } from './dto/change-pass.dto';
 
 @Injectable()
 export class UsersService {
@@ -27,7 +28,7 @@ export class UsersService {
     createUserDto: CreateUserDto
   ) {
 
-    const { fullName, username, password, schoolId, gradeIds, subjectIds } = createUserDto;
+    const { fullName, username, password, schoolId, gradeIds, subjectIds, role='Giáo viên' } = createUserDto;
 
 
     // Tìm trường học
@@ -48,6 +49,12 @@ export class UsersService {
       throw new Error('Some subjects not found');
     }
 
+    const existUser: any = await this.repo.findOne({ where: { username, school: { id: schoolId } } });
+
+    if (existUser) {
+      throw new BadRequestException('Tên tài khoản đã tồn tại');
+      }
+
 
     const user = await this.repo.save({
       fullname: fullName,
@@ -56,6 +63,7 @@ export class UsersService {
       school,
       grades,
       subjects,
+      role
     });
     return user
   }
@@ -110,5 +118,30 @@ export class UsersService {
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));
+  }
+
+  async changePassword(dto: ChangePassDto): Promise<User> {
+    const { userId, password, newPassword } = dto;
+
+    // 1️⃣ Tìm user theo `userId`
+    const user = await this.repo.findOne({ where: { id: +userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // 2️⃣ Kiểm tra mật khẩu cũ
+    const isMatch = await UserUtil.comparePassword(password, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu cũ không chính xác');
+    }
+
+    // 3️⃣ Mã hóa mật khẩu mới
+    const hashedPassword = await UserUtil.hashPassword(newPassword);
+
+    // 4️⃣ Lưu mật khẩu mới vào database
+    user.password = hashedPassword;
+    const newUser = await this.repo.save(user);
+
+    return newUser;
   }
 }

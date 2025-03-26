@@ -22,4 +22,10 @@ export class CreateUserDto {
     @IsArray()
     subjectIds: number[];
 
+    @IsOptional()
+    isAdmin?: boolean = false;
+    
+    @IsOptional()
+    role: string = 'Giáo viên';
+
 }

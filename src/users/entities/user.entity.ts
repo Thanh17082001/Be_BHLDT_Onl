@@ -1,6 +1,7 @@
 
 import { BaseUserEntity } from "src/common/entities/base-user.entity";
 import { Grade } from "src/grade/entities/grade.entity";
+import { Role } from "src/role/role.enum";
 import { School } from "src/schools/entities/school.entity";
 import { Subject } from "src/subjects/entities/subject.entity";
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne } from "typeorm";
@@ -16,7 +17,7 @@ export class User extends BaseUserEntity {
     email?: string;
     @Column({ default: '' })
     phone?: string;
-    @Column({ default: 'Teacher' })
+    @Column({ default: 'Giáo viên', enum:Role })
     role?: string;
     @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
     createdBy?: User
@@ -33,4 +34,7 @@ export class User extends BaseUserEntity {
     @ManyToMany(() => Subject, (subject) => subject.users)
     @JoinTable()
     subjects: Subject[];
+
+    @Column({ default: false })
+    isAdmin:boolean; // true: admin, false: user
 }

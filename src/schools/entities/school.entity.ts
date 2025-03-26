@@ -1,6 +1,7 @@
 import { BaseWithCreatedBy } from "src/common/entities/base-user-createdBy";
 import { AbstractEntity } from "src/common/entities/base.entity";
 import { Grade } from "src/grade/entities/grade.entity";
+import { Subject } from "src/subjects/entities/subject.entity";
 import { User } from "src/users/entities/user.entity";
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from "typeorm";
 export enum SchoolType {
@@ -19,6 +20,9 @@ export class School extends AbstractEntity  {
 
     @OneToMany(() => User, (user) => user.school)
     users: User[];
+
+    @OneToMany(() => Subject, (subject) => subject.school)
+    subjects: Subject[];
 
     @OneToMany(() => Grade, (cls) => cls.school)
     grades: Grade[];

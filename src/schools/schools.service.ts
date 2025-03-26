@@ -9,6 +9,8 @@ import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
 import { School, SchoolType } from './entities/school.entity';
 import { Grade } from 'src/grade/entities/grade.entity';
+import { User } from 'src/users/entities/user.entity';
+import { Role } from 'src/role/role.enum';
 
 @Injectable()
 export class SchoolsService {
@@ -17,7 +19,6 @@ export class SchoolsService {
     @InjectRepository(Grade) private gradeRepo: Repository<Grade>,
   ) {}
   async create(createSchoolDto: CreateSchoolDto): Promise<School> {
-    console.log('thienthanh');
     const { name, schoolType } = createSchoolDto;
     let grades: Grade[] = [];
     const nameGrades = GradeInSchoolType[schoolType];
@@ -33,12 +34,11 @@ export class SchoolsService {
     if (await this.repo.findOne({where:{name, schoolType} })) {
       throw new HttpException('Trường đã tồn tại',409);
     }
-    console.log(createSchoolDto);
     const newUser = await this.repo.create({...createSchoolDto, grades});
     return await this.repo.save(newUser);
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<School>): Promise<PageDto<School>> {
+  async findAll(pageOptions: PageOptionsDto, query: Partial<School>, user:User): Promise<PageDto<School>> {
     const queryBuilder = this.repo.createQueryBuilder('school').leftJoinAndSelect('school.grades', 'grade');;
     const { page, limit, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
@@ -49,6 +49,11 @@ export class SchoolsService {
           queryBuilder.andWhere(`school.${key} = :${key}`, { [key]: query[key] });
         }
       });
+    }
+
+    // 🟢 Nếu không phải admin, chỉ lấy trường của user
+    if (user.role !== Role.ADMIN) {
+      queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
     }
 
     //search document

@@ -1,9 +1,10 @@
 import { SchoolsService } from './schools.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { UpdateSchoolDto } from './dto/update-school.dto';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { School } from './entities/school.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Controller('schools')
 export class SchoolsController {
@@ -16,8 +17,10 @@ export class SchoolsController {
   }
 
   @Get()
-  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<School>) {
-    return this.schoolsService.findAll(pageOptionDto, query);
+  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<School>,  @Req() request: Request) {
+        const user:User = request['user'] ?? null;
+  
+    return this.schoolsService.findAll(pageOptionDto, query, user);
   }
 
   @Get(':id')
