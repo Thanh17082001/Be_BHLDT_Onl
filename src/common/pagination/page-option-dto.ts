@@ -36,11 +36,11 @@ export class PageOptionsDto {
     @Min(1)
     @Max(50)
     @IsOptional()
-    readonly limit?: number = 10;
+    readonly take?: number = 10;
 
    
 
     get skip(): number {
-        return (this.page - 1) * this.limit;
+        return (this.page - 1) * this.take;
     }
 }

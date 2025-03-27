@@ -1,3 +1,4 @@
+import { Class } from "src/class/entities/class.entity";
 import { BaseWithCreatedBy } from "src/common/entities/base-user-createdBy";
 import { AbstractEntity } from "src/common/entities/base.entity";
 import { Grade } from "src/grade/entities/grade.entity";
@@ -15,6 +16,15 @@ export enum SchoolType {
 export class School extends AbstractEntity  {
     @Column({ type: 'varchar', length: 255 })
     name: string;
+
+    @Column({ nullable: true, default: null })
+    code?: string
+    @Column({ nullable: true, default: null })
+    address?: string;
+    @Column({ nullable: true, default: null })
+    description?: string;
+    @Column({ nullable: true })
+    manageBy?: string
     @Column({ type: 'enum', enum: SchoolType, nullable: true })
     schoolType: string;
 
@@ -26,6 +36,10 @@ export class School extends AbstractEntity  {
 
     @OneToMany(() => Grade, (cls) => cls.school)
     grades: Grade[];
+
+    @OneToMany(() => Class, (cls) => cls.school)
+    classes: Class[];
+
 
     @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
     @JoinColumn({ name: 'created_by' }) // Tạo cột `created_by` trong DB

@@ -12,6 +12,14 @@ import { RoleModule } from './role/role.module';
 import { AuthGuard } from './auth/auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { TopicsModule } from './topics/topics.module';
+import { SchoolYearModule } from './school-year/school-year.module';
+import { ClassModule } from './class/class.module';
+import { FileTypeModule } from './file-type/file-type.module';
+import { PartModule } from './part/part.module';
+import { TypeVoiceModule } from './type-voice/type-voice.module';
+import { TypeScoreModule } from './type-score/type-score.module';
+import { FileModule } from './file/file.module';
+import { ImageModule } from './image/image.module';
 
 @Module({
   imports: [
@@ -41,7 +49,7 @@ import { TopicsModule } from './topics/topics.module';
           console.log(error);
         }
       },
-    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule, RoleModule, TopicsModule
+    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule, RoleModule, TopicsModule, SchoolYearModule, ClassModule, FileTypeModule, PartModule, TypeVoiceModule, TypeScoreModule, FileModule, ImageModule
   ],
   controllers: [],
   providers: [

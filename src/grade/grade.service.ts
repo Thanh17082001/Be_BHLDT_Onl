@@ -25,29 +25,29 @@ export class GradeService {
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<Grade>): Promise<PageDto<Grade>> {
-    const queryBuilder = this.repo.createQueryBuilder('example');
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+    const queryBuilder = this.repo.createQueryBuilder('grade').leftJoinAndSelect('grade.school', 'school');;
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
         if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`example.${key} = :${key}`, { [key]: query[key] });
+          queryBuilder.andWhere(`grade.${key} = :${key}`, { [key]: query[key] });
         }
       });
     }
 
     //search document
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(example.name)) ILIKE LOWER(unaccent(:search))`, {
+      queryBuilder.andWhere(`LOWER(unaccent(grade.name)) ILIKE LOWER(unaccent(:search))`, {
         search: `%${search}%`,
       });
     }
 
 
-    queryBuilder.orderBy(`example.createdAt`, order)
+    queryBuilder.orderBy(`grade.createdAt`, order)
       .skip(skip)
-      .take(limit);
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });

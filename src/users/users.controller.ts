@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, UseInterceptors, UploadedFile, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -12,9 +12,14 @@ import { GradeService } from 'src/grade/grade.service';
 import { SubjectsService } from 'src/subjects/subjects.service';
 import { Public } from 'src/auth/auth.decorator';
 import { ChangePassDto } from './dto/change-pass.dto';
+import { RolesGuard } from 'src/role/role.guard';
+import { Roles } from 'src/role/role.decorator';
+import { Role } from 'src/role/role.enum';
 
-@Controller('users')
-@Public()
+@Controller('user')
+@UseGuards(RolesGuard)
+@Roles(Role.ADMIN)
+
 export class UsersController {
     constructor(private readonly userService: UsersService,
         private readonly gradeService: GradeService,
@@ -24,9 +29,9 @@ export class UsersController {
     @Post('import-excel')
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file'))
-    async ImportExecl(@UploadedFile() file: Express.Multer.File, @Body() importFileExcel: ImportFileExcelUser) {
+    async ImportExecl(@UploadedFile() file: Express.Multer.File, @Body() importFileExcel: ImportFileExcelUser, @Req() request: Request) {
         // Đọc dữ liệu từ buffer của file Excel
-
+        const user = request['user'] ?? null;
 
         const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
@@ -39,7 +44,7 @@ export class UsersController {
             'THCS': ['6', '7', '8', '9'],
             'Tiểu học': ['1', '2', '3', '4', '5'],
             'TH&THCS': ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
-            'THCS&THPT': ['6', '7', '8', '9','10', '11', '12']
+            'THCS&THPT': ['6', '7', '8', '9', '10', '11', '12']
         }
 
         let arraySuccess = [];
@@ -61,13 +66,13 @@ export class UsersController {
             const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels, schoolId);
 
             // // Tạo hoặc tìm các môn học
-            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, schoolId);
+            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, schoolId, user);
             try {
                 const userDto: CreateUserDto = {
                     fullName,
                     username: generateUsername(row['LOẠI TRƯỜNG'], schoolName, fullName),
                     password: '1',
-                    role:row['Quyền'] ?? 'Giáo viên',
+                    role: row['Quyền'] ?? 'Giáo viên',
                     schoolId,
                     gradeIds,
                     subjectIds,
@@ -79,7 +84,7 @@ export class UsersController {
                 }
             } catch (error) {
                 arrayFail.push({
-                    resutl:row,
+                    resutl: row,
                     error: error.response,
                 })
             }
@@ -93,12 +98,12 @@ export class UsersController {
     @Post('admin')
     async create() {
         const userDto: CreateUserDto = {
-            fullName:'Quản Trị Viên',
+            fullName: 'Quản Trị Viên',
             username: 'admin',
-            role:'Quản trị viên',
+            role: 'Quản trị viên',
             password: '1',
-            schoolId:1,
-            gradeIds:[],
+            schoolId: -1,
+            gradeIds: [],
             subjectIds: [],
             isAdmin: true,
         };

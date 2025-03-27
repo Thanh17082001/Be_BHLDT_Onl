@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { IsEmail, IsString, IsDateString, IsOptional, IsNotEmpty, IsNumber } from 'class-validator'
+import { BaseDto } from 'src/common/dto/base.dto';
 
-export class CreateTopicDto {
+export class CreateTopicDto extends OmitType(BaseDto,[] as const) {
     @ApiProperty()
     @IsString()
     @IsNotEmpty()
@@ -11,7 +12,4 @@ export class CreateTopicDto {
     @IsNotEmpty()
     subjectId: number;
 
-    @IsNumber()
-    @IsNotEmpty()
-    schoolId: number;
 }

@@ -24,8 +24,8 @@ export class ExamplesService {
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<Example>): Promise<PageDto<Example>> {
     const queryBuilder = this.repo.createQueryBuilder('example');
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
@@ -45,7 +45,7 @@ export class ExamplesService {
 
     queryBuilder.orderBy(`example.createdAt`, order)
       .skip(skip)
-      .take(limit);
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });

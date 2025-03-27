@@ -13,8 +13,4 @@ export class CreateSubjectDto extends OmitType(BaseDto, [] as const) {
     @IsNotEmpty()
     gradeId: number;
 
-    @ApiProperty()
-    @IsNumber()
-    @IsNotEmpty()
-    schoolId: number;
 }

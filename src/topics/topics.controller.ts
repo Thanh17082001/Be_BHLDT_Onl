@@ -2,13 +2,15 @@ import { TopicsService } from './topics.service';
 import { CreateTopicDto } from './dto/create-topic.dto';
 import { UpdateTopicDto } from './dto/update-topic.dto';
 
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req, UseGuards } from '@nestjs/common';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { Topic } from './entities/topic.entity';
+import { RolesGuard } from 'src/role/role.guard';
 
-@Controller('examples')
+@Controller('topic')
+@UseGuards(RolesGuard)
 export class TopicsController {
   constructor(private readonly topicsService: TopicsService) { }
 
@@ -25,7 +27,7 @@ export class TopicsController {
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Topic>, @Req() request: Request) {
     const user = request['user'] ?? null;
     console.log(user, 'thahtahthat');
-    return this.topicsService.findAll(pageOptionDto, query);
+    return this.topicsService.findAll(pageOptionDto, query, user);
   }
 
   @Get(':id')
@@ -33,12 +35,14 @@ export class TopicsController {
     return this.topicsService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Put(':id')
+  @Roles(Role.TEACHER)
   update(@Param('id') id: string, @Body() updateTopicDto: UpdateTopicDto) {
     return this.topicsService.update(+id, updateTopicDto);
   }
 
   @Delete(':id')
+  @Roles(Role.TEACHER)
   remove(@Param('id') id: string) {
     return this.topicsService.remove(+id);
   }

@@ -10,5 +10,6 @@ import { SchoolsModule } from 'src/schools/schools.module';
   imports: [TypeOrmModule.forFeature([Topic]),SubjectsModule,SchoolsModule],
   controllers: [TopicsController],
   providers: [TopicsService],
+  exports: [TopicsService,TypeOrmModule],
 })
 export class TopicsModule {}

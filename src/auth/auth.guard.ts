@@ -21,7 +21,7 @@ export class AuthGuard implements CanActivate {
     }
     const token = this.extractTokenFromHeader(request);
     if (!token) {
-      throw new UnauthorizedException('No token provided');
+      throw new UnauthorizedException('Ko có token');
     }
 
     try {
@@ -31,9 +31,9 @@ export class AuthGuard implements CanActivate {
       request['user'] = payload;
     } catch (e) {
       if (e instanceof TokenExpiredError) {
-        throw new UnauthorizedException('Token has expired');
+        throw new UnauthorizedException('Token hết hạn');
       }
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedException('Token không chính xác');
     }
     return true;
   }

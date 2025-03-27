@@ -11,6 +11,7 @@ import { Topic } from './entities/topic.entity';
 import { Subject } from 'src/subjects/entities/subject.entity';
 import { User } from 'src/users/entities/user.entity';
 import { School } from 'src/schools/entities/school.entity';
+import { Role } from 'src/role/role.enum';
 
 @Injectable()
 export class TopicsService {
@@ -37,40 +38,57 @@ export class TopicsService {
     }
 
     const cls = this.repo.create({ name: createTopicDto.name, subject, school });
-    if (!subject.topics) {
-      subject.topics = [];
-    }
-    subject.topics.push(cls)
+    // if (!subject.topics) {
+    //   subject.topics = [];
+    // }
+    // subject.topics.push(cls)
 
-    // const newTopic =  await this.repo.save({ name: createTopicDto.name, subject });
-    await this.repoSubject.save(subject);
-    return cls;
+    const newTopic = await this.repo.save({ name: createTopicDto.name, subject, school });
+    // await this.repoSubject.save(subject);
+    return newTopic;
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<Topic>): Promise<PageDto<Topic>> {
-    const queryBuilder = this.repo.createQueryBuilder('example');
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+  async findAll(pageOptions: PageOptionsDto, query: Partial<Topic>, user: User): Promise<PageDto<Topic>> {
+
+    const queryBuilder = this.repo.createQueryBuilder('topic').leftJoinAndSelect('topic.subject', 'subject')
+      .leftJoinAndSelect('topic.school', 'school').leftJoinAndSelect('topic.createdBy', 'createdBy').leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
         if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`example.${key} = :${key}`, { [key]: query[key] });
+          queryBuilder.andWhere(`topic.${key} = :${key}`, { [key]: query[key] });
         }
       });
     }
 
+     // 🎯 Phân quyền dữ liệu
+        if (user.role === Role.TEACHER) {
+          queryBuilder.andWhere(
+            '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
+            {
+              userId: user.id,
+              schoolId: user.school.id
+            }
+          );
+        } else if (user.role === Role.PRINCIPAL) {
+          queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
+            schoolId: user.school.id
+          });
+        }
+
     //search document
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(example.name)) ILIKE LOWER(unaccent(:search))`, {
+      queryBuilder.andWhere(`LOWER(unaccent(topic.name)) ILIKE LOWER(unaccent(:search))`, {
         search: `%${search}%`,
       });
     }
 
 
-    queryBuilder.orderBy(`example.createdAt`, order)
+    queryBuilder.orderBy(`topic.createdAt`, order)
       .skip(skip)
-      .take(limit);
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
@@ -89,7 +107,7 @@ export class TopicsService {
   }
 
   async update(id: number, updateTopicDto: UpdateTopicDto) {
-    const { name } = updateTopicDto;
+    const { name,subjectId } = updateTopicDto;
     const exampleExits: Topic = await this.repo.findOne({ where: { name, id: Not(id) } });
     if (exampleExits) {
       throw new HttpException('Tên đã tồn tại', 409);
@@ -101,7 +119,13 @@ export class TopicsService {
       throw new NotFoundException(`Topic with ID ${id} not found`);
     }
 
-    Object.assign(example, updateTopicDto)
+    const subject: Subject = await this.repoSubject.findOne({
+      where: {
+        id:subjectId
+      },
+    })
+
+    Object.assign(example, { subject ,name})
 
     await this.repo.update(id, example)
 

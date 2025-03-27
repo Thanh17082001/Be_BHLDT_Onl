@@ -18,8 +18,9 @@ export class SchoolsService {
     @InjectRepository(School) private repo: Repository<School>,
     @InjectRepository(Grade) private gradeRepo: Repository<Grade>,
   ) {}
-  async create(createSchoolDto: CreateSchoolDto): Promise<School> {
+  async create(createSchoolDto: CreateSchoolDto, user:User): Promise<School> {
     const { name, schoolType } = createSchoolDto;
+    
     let grades: Grade[] = [];
     const nameGrades = GradeInSchoolType[schoolType];
     for (let i = 0; i < nameGrades.length; i++){
@@ -34,14 +35,14 @@ export class SchoolsService {
     if (await this.repo.findOne({where:{name, schoolType} })) {
       throw new HttpException('Trường đã tồn tại',409);
     }
-    const newUser = await this.repo.create({...createSchoolDto, grades});
+    const newUser = await this.repo.create({...createSchoolDto, grades, createdBy:user});
     return await this.repo.save(newUser);
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<School>, user:User): Promise<PageDto<School>> {
     const queryBuilder = this.repo.createQueryBuilder('school').leftJoinAndSelect('school.grades', 'grade');;
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
@@ -66,7 +67,7 @@ export class SchoolsService {
 
     queryBuilder.orderBy(`school.createdAt`, order)
       .skip(skip)
-      .take(limit);
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
@@ -92,12 +93,27 @@ export class SchoolsService {
 
 
     if (!school) {
+
+      const nameGrades = GradeInSchoolType[typeSchool];
+      let grades: Grade[] = [];
+      for (let i = 0; i < nameGrades.length; i++) {
+        let grade = await this.gradeRepo.findOne({ where: { name: nameGrades[i] } });
+        if (!grade) {
+          grade = this.gradeRepo.create({ name: nameGrades[i] });
+          await this.gradeRepo.save(grade);
+        }
+        grades.push(grade);
+      }
       // Tạo mới nếu không tìm thấy
       school = this.repo.create({ name: name, schoolType: typeSchool });
       await this.repo.save(school);
     }
 
     return school.id; // Trả về id của trường đã tìm thấy hoặc mới tạo
+  }
+
+  findAlltype(): ItemDto<SchoolType> {
+    return new ItemDto(Object.assign(SchoolType));
   }
 
   async update(id: number, updateSchoolDto: UpdateSchoolDto) {
@@ -112,6 +128,8 @@ export class SchoolsService {
     if (!School) {
       throw new NotFoundException(`School with ID ${id} not found`);
     }
+
+
 
     Object.assign(School, updateSchoolDto)
 

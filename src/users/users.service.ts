@@ -28,14 +28,11 @@ export class UsersService {
     createUserDto: CreateUserDto
   ) {
 
-    const { fullName, username, password, schoolId, gradeIds, subjectIds, role='Giáo viên' } = createUserDto;
+    const { fullName, username, password, schoolId, gradeIds, subjectIds, role='Giáo viên', isAdmin } = createUserDto;
 
 
     // Tìm trường học
     const school = await this.schoolRepository.findOne({ where: { id: schoolId } });
-    if (!school) {
-      throw new Error('School not found');
-    }
 
     // Tìm danh sách lớp theo `classIds`
     const grades = await this.gradeRepository.findByIds(gradeIds);
@@ -60,18 +57,19 @@ export class UsersService {
       fullname: fullName,
       username,
       password: UserUtil.hashPassword(password),
-      school,
+      school: school ?? null,
       grades,
       subjects,
-      role
+      role,
+      isAdmin: isAdmin ?? false,
     });
     return user
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<User>): Promise<PageDto<User>> {
     const queryBuilder = this.repo.createQueryBuilder('user');
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search']
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
@@ -91,7 +89,7 @@ export class UsersService {
 
     queryBuilder.orderBy(`user.createdAt`, order)
       .skip(skip)
-      .take(limit);
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });

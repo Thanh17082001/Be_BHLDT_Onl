@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req } from '@nestjs/common';
 import { ExamplesService } from './examples.service';
 import { CreateExampleDto } from './dto/create-example.dto';
 import { UpdateExampleDto } from './dto/update-example.dto';
@@ -9,7 +9,7 @@ import { Role } from 'src/role/role.enum';
 
 @Controller('examples')
 export class ExamplesController {
-  constructor(private readonly examplesService: ExamplesService) {}
+  constructor(private readonly examplesService: ExamplesService) { }
 
   @Post()
   create(@Body() createExampleDto: CreateExampleDto) {
@@ -17,11 +17,11 @@ export class ExamplesController {
   }
 
   @Get()
-    @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER)
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Example>, @Req() request: Request) {
     const user = request['user'] ?? null;
-    console.log(user,'thahtahthat');
-    return this.examplesService.findAll(pageOptionDto,query);
+    console.log(user, 'thahtahthat');
+    return this.examplesService.findAll(pageOptionDto, query);
   }
 
   @Get(':id')
@@ -29,7 +29,7 @@ export class ExamplesController {
     return this.examplesService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateExampleDto: UpdateExampleDto) {
     return this.examplesService.update(+id, updateExampleDto);
   }

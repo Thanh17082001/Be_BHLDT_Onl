@@ -25,6 +25,7 @@ export class SubjectsService {
   ) { }
   async create(createSubjectDto: CreateSubjectDto, user: User): Promise<Subject> {
     createSubjectDto.schoolId = user.school.id;
+    const school = await this.repoSchool.findOne({ where: { id: createSubjectDto.schoolId } });
     const { name,gradeId } = createSubjectDto;
     if (await this.repo.findOne({ where: { name } })) {
       throw new HttpException('Tên đã tồn tại', 409);
@@ -33,7 +34,7 @@ export class SubjectsService {
     if (!grade) {
       throw new HttpException('Lớp không tồn tại', 409);
     }
-    const newSubject = this.repo.create({ ...createSubjectDto, name:`${name} ${grade.name}`, grade });
+    const newSubject = this.repo.create({ ...createSubjectDto, name: `${name} ${grade.name}`, grade, createdBy: user, school: school ?? null });
     return await this.repo.save(newSubject);
   }
 
@@ -47,8 +48,8 @@ export class SubjectsService {
       .leftJoinAndSelect('subject.school', 'school') // Lấy thông tin trường
       .leftJoinAndSelect('subject.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
 
-    const { page, limit, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'limit', 'skip', 'order', 'search'];
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
@@ -61,14 +62,17 @@ export class SubjectsService {
 
     // 🎯 Phân quyền dữ liệu
     if (user.role === Role.TEACHER) {
-      console.log('đaa');
-      // Giáo viên lấy các môn thuộc trường của họ + các môn họ phụ trách
-      queryBuilder.andWhere('(users.id = :userId)', {
-        userId: user.id
-      });
+      queryBuilder.andWhere(
+        '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
+        {
+          userId: user.id,
+          schoolId: user.school.id
+        }
+      );
     } else if (user.role === Role.PRINCIPAL) {
-      // Hiệu trưởng lấy các môn của trường họ quản lý
-      queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
+      queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
+        schoolId: user.school.id
+      });
     }
 
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
@@ -79,7 +83,7 @@ export class SubjectsService {
     }
 
     // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(limit);
+    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
@@ -98,7 +102,7 @@ export class SubjectsService {
     return new ItemDto(example);
   }
 
-  async findOrCreateByNames(names: string[], gradeIds: number[], schoolId: number): Promise<number[]> {
+  async findOrCreateByNames(names: string[], gradeIds: number[], schoolId: number, user): Promise<number[]> {
     if (!gradeIds.length || !names.length) {
       return [];
     }
@@ -139,7 +143,7 @@ export class SubjectsService {
         .map(name => {
           const fullName = `${name} lớp ${grade.name}`;
           if (!existingMap.has(fullName)) {
-            return this.repo.create({ name: fullName, grade, school });
+            return this.repo.create({ name: fullName, grade, school, createdBy:user });
           }
           return null;
         })
@@ -168,8 +172,11 @@ export class SubjectsService {
     if (!example) {
       throw new NotFoundException(`Subject with ID ${id} not found`);
     }
-
-    Object.assign(example, updateSubjectDto)
+    const grade: Grade = await this.repoGrade.findOne({ where: { id: updateSubjectDto.gradeId } });
+    if (!grade) {
+      throw new HttpException('Lớp không tồn tại', 409);
+    }
+    Object.assign(example, {name:updateSubjectDto.name, grade})
 
     await this.repo.update(id, example)
 

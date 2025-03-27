@@ -22,8 +22,8 @@ export class User extends BaseUserEntity {
     @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
     createdBy?: User
 
-    @ManyToOne(() => School, (school) => school.grades)
-    school: School;
+    @ManyToOne(() => School, (school) => school.users, { onDelete: 'SET NULL' })
+    school?: School;
 
     // Mỗi user có thể thuộc nhiều khối
     @ManyToMany(() => Grade, (grade) => grade.users)

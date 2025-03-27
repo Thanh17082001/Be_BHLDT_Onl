@@ -7,6 +7,9 @@ export class BaseDto {
     createdBy?: any; 
 
    @IsOptional()
-    isPublic?: any =false;
+    isPublic?: any = false;
+    
+    @IsOptional()
+    schoolId?: number = null;
 }
 

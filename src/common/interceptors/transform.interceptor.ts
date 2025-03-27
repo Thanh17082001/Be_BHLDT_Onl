@@ -22,7 +22,7 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
             {
                 statusCode: statusCode,
                 message: this.reflector.get<string>(RESPONSE_MESSAGE, context.getHandler()) || 'Success',
-                data: Array.isArray(data) ? { result: data } : data,
+                data: Array.isArray(data) ? { data: data } : data,
             }
         )));
     }
