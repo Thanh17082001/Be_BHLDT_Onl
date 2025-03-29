@@ -26,7 +26,6 @@ export class TopicsController {
   @Roles(Role.TEACHER)
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Topic>, @Req() request: Request) {
     const user = request['user'] ?? null;
-    console.log(user, 'thahtahthat');
     return this.topicsService.findAll(pageOptionDto, query, user);
   }
 

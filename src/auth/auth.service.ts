@@ -34,7 +34,7 @@ export class AuthService {
         throw new BadRequestException('Tài khoản hoặc mật khẩu không chính xác');
       }
       const payload = { ...user, password: undefined, };
-      const accessToken = this.jwtService.sign(payload, { expiresIn: '60m' });
+      const accessToken = this.jwtService.sign(payload);
       return {
         ...payload,
         accessToken: accessToken,

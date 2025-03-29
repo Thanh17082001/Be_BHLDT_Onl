@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Req, Query, UseGuards } from '@nestjs/common';
 import { FileService } from './file.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
@@ -9,13 +9,18 @@ import { generateImageFromVideo } from 'src/utils/generate-thumbnail-video';
 import { resizeImage } from 'src/utils/resize-image';
 import { ReplacePathFile } from 'src/utils/replace-path-file';
 import { Public } from 'src/auth/auth.decorator';
+import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
+import { Roles } from 'src/role/role.decorator';
+import { Role } from 'src/role/role.enum';
+import { RolesGuard } from 'src/role/role.guard';
 
 @Controller('file')
-  @Public()
+  @UseGuards(RolesGuard)
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
   @Post()
+    @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Upload file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -34,24 +39,23 @@ export class FileController {
       createFileDto.mimetype = file.mimetype;
       if (file.mimetype == 'application/pdf') {
         const convertPdftoimage = await this.fileService.convertPdfToImages(file?.path);
-        images = convertPdftoimage.files;
-        fileSize += convertPdftoimage.totalSizeMB;
-        createFileDto.path = `pdf/${file.filename}`;
+        images = convertPdftoimage;
+        createFileDto.path = `public/pdf/${file.filename}`;
         createFileDto.previewImage = images.length > 0 ? images[0] : createFileDto.path;
       } else if (file.mimetype == 'video/mp4') {
-        const generateImage = await generateImageFromVideo(`publication/video/${file.filename}`);
+        const generateImage = await generateImageFromVideo(`/video/${file.filename}`);
         createFileDto.previewImage = generateImage.path;
         fileSize += generateImage.sizeMB;
-        createFileDto.path = `video/${file.filename}`;
+        createFileDto.path = `public/video/${file.filename}`;
       } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-        createFileDto.path = `ptt/${file.filename}`;
-        createFileDto.previewImage = '/default/default-ptt.jpg';
+        createFileDto.path = `public/ptt/${file.filename}`;
+        createFileDto.previewImage = 'public/default/default-ptt.jpg';
       } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        createFileDto.path = `word/${file.filename}`;
-        createFileDto.previewImage = '/default/default-word.jpg';
+        createFileDto.path = `public/word/${file.filename}`;
+        createFileDto.previewImage = 'public/default/default-word.jpg';
       } else {
         const link: string = await resizeImage(file);
-        createFileDto.path = `image/${file.filename}`;
+        createFileDto.path = `/public/image/${file.filename}`;
         createFileDto.previewImage = ReplacePathFile(link);
      
    }
@@ -61,9 +65,11 @@ export class FileController {
   }
 
   @Get()
-  findAll() {
-    return this.fileService.findAll();
-  }
+    @Roles(Role.TEACHER)
+    async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<File>, @Req() request: Request) {
+      const user = request['user'] ?? null;
+      return this.fileService.findAll(pageOptionDto, query, user);
+    }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -76,6 +82,7 @@ export class FileController {
   }
 
   @Delete(':id')
+  @Roles(Role.TEACHER)
   remove(@Param('id') id: string) {
     return this.fileService.remove(+id);
   }

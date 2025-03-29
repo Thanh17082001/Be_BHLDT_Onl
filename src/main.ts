@@ -22,12 +22,14 @@ async function bootstrap() {
 
 
   //middleware block static file
+
+
   app.use('/public', new StaticFilesMiddleware().use);
 
-  // static file
-  app.use(express.static(join(__dirname, '..', '..')));
-  app.use(express.json({ limit: '1024mb' }));
+  app.use(express.static(join(__dirname, '..' )));
+  app.use(express.json({ limit: '1024mb' }))
   app.use(express.urlencoded({ limit: '1024mb', extended: true }));
+
 
   // set global route
   app.setGlobalPrefix('api'); 

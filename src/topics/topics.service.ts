@@ -72,6 +72,15 @@ export class TopicsService {
               schoolId: user.school.id
             }
           );
+
+          const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+
+
+          if (subjectIds.length > 0) {
+            queryBuilder.andWhere('subject.id IN (:...subjectIds)', {
+              subjectIds,
+            });
+          }
         } else if (user.role === Role.PRINCIPAL) {
           queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
             schoolId: user.school.id

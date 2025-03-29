@@ -62,6 +62,7 @@ export class SubjectsService {
 
     // 🎯 Phân quyền dữ liệu
     if (user.role === Role.TEACHER) {
+
       queryBuilder.andWhere(
         '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
         {
@@ -69,6 +70,16 @@ export class SubjectsService {
           schoolId: user.school.id
         }
       );
+
+      const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+
+
+      if (subjectIds.length > 0) {
+        console.log(subjectIds);
+        queryBuilder.andWhere('subject.id IN (:...subjectIds)', {
+          subjectIds,
+        });
+      }
     } else if (user.role === Role.PRINCIPAL) {
       queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
         schoolId: user.school.id

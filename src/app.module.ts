@@ -20,9 +20,15 @@ import { TypeVoiceModule } from './type-voice/type-voice.module';
 import { TypeScoreModule } from './type-score/type-score.module';
 import { FileModule } from './file/file.module';
 import { ImageModule } from './image/image.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
+    JwtModule.register({
+        global: true,
+        secret: 'thienthanh132',
+        signOptions: { expiresIn: '10s' },
+      }),
     ConfigModule.forRoot({
       load: [configuration],
       isGlobal: true,

@@ -20,7 +20,6 @@ export class ExamplesController {
   @Roles(Role.TEACHER)
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Example>, @Req() request: Request) {
     const user = request['user'] ?? null;
-    console.log(user, 'thahtahthat');
     return this.examplesService.findAll(pageOptionDto, query);
   }
 

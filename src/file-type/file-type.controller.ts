@@ -29,7 +29,7 @@ export class FileTypeController {
   }
 
   @Get()
-
+  @Roles(Role.TEACHER)
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<FileType>) {
     return this.fileTypeService.findAll(pageOptionDto, query);
   }

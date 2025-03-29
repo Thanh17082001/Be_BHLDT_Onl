@@ -4,6 +4,7 @@ import { BaseWithCreatedBy } from "src/common/entities/base-user-createdBy";
 import { School } from "src/schools/entities/school.entity";
 import { Topic } from "src/topics/entities/topic.entity";
 import { Image } from "src/image/entities/image.entity";
+import { Subject } from "src/subjects/entities/subject.entity";
 
 @Entity()
 export class File extends BaseWithCreatedBy {
@@ -17,16 +18,16 @@ export class File extends BaseWithCreatedBy {
     previewImage: string;
 
     @ManyToOne(() => FileType, { nullable: true })
-    @JoinColumn({ name: "fileType_id" })
+    @JoinColumn({ name: "filetype_id" })
     fileType?: FileType;
 
     @ManyToOne(() => Topic, { nullable: true })
     @JoinColumn({ name: "topic_id" })
-    topic?: Topic;
+    topic?: Topic | null;
 
-    @ManyToOne(() => Topic, { nullable: true })
+    @ManyToOne(() => Subject, { nullable: true })
     @JoinColumn({ name: "subject_id" })
-    subject?: Topic;
+    subject?: Subject | null;
 
     @ManyToOne(() => School, { nullable: false })
     @JoinColumn({ name: "schoolId" })
@@ -37,7 +38,7 @@ export class File extends BaseWithCreatedBy {
 
     @ManyToOne(() => File, (file) => file.id, { nullable: true })
     @JoinColumn({ name: "parent_id" })
-    parent: File | null;
+    parent?: File | null;
 
     @OneToMany(() => Image, (image) => image.file, { cascade: true, onDelete: 'CASCADE' })
     images: Image[]

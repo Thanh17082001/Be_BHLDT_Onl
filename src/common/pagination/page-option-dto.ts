@@ -36,7 +36,7 @@ export class PageOptionsDto {
     @Min(1)
     @Max(50)
     @IsOptional()
-    readonly take?: number = 10;
+    readonly take?: number = null;
 
    
 

@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 
 export class StaticFilesMiddleware {
-    private static allowedDomains = ['http://thienthanh.com', 'http://127.0.0.1:5500/', 'http://192.168.1.128:5501/'];
+    private static allowedDomains = ['http://thienthanh.com', 'http://127.0.0.1:5500/', 'http://192.168.1.128:5501/', 'http://localhost:28040/'];
 
     use(req: Request, res: Response, next: NextFunction) {
-        const origin = req.headers.origin || req.headers.referer || ''; // Lấy Origin hoặc Referer
+        const origin = req.headers.origin ??  req.headers.referer; // Lấy Origin hoặc Referer
+
+        console.log(req.headers,'thiênthanhafna')
 
         // Chỉ cho phép truy cập từ FE của bạn
 
