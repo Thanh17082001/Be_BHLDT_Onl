@@ -32,6 +32,8 @@ export class ClassController {
   }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
+
   findOne(@Param('id') id: string) {
     return this.examplesService.findOne(+id);
   }
@@ -43,6 +45,7 @@ export class ClassController {
   }
 
   @Delete(':id')
+  @Roles(Role.TEACHER)
   remove(@Param('id') id: string) {
     return this.examplesService.remove(+id);
   }

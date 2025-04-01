@@ -2,13 +2,14 @@ import { GradeService } from './grade.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Grade } from './entities/grade.entity';
 import { RolesGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
+import { SchoolType } from 'src/schools/entities/school.entity';
 
 @Controller('grade')
   @UseGuards(RolesGuard)
@@ -20,6 +21,7 @@ export class GradeController {
   async create() {
     let createGradeDto: CreateGradeDto = new CreateGradeDto();
     let result = []
+    const typeSchool = SchoolType
     const names: string[] = Array.from({ length: 12 }, (_, i) => (i + 1).toString());
     for (let i = 0; i < names.length; i++) {
       createGradeDto.name = names[i];
@@ -31,8 +33,9 @@ export class GradeController {
   @Get()
   @Roles(Role.TEACHER)
 
-  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Grade>) {
-    return this.gradeService.findAll(pageOptionDto, query);
+  async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Grade>, @Req() request: Request) {
+    const user = request['user'] ?? null;
+    return this.gradeService.findAll(pageOptionDto, query, user);
   }
 
   @Get(':id')

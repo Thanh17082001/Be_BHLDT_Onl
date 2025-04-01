@@ -8,5 +8,6 @@ import { TypeScore } from './entities/type-score.entity';
   imports:[TypeOrmModule.forFeature([TypeScore])],
   controllers: [TypeScoreController],
   providers: [TypeScoreService],
+  exports: [TypeScoreService, TypeOrmModule]
 })
 export class TypeScoreModule {}

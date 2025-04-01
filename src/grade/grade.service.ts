@@ -9,6 +9,8 @@ import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
 import { Grade } from './entities/grade.entity';
+import { User } from 'src/users/entities/user.entity';
+import { SchoolType } from 'src/schools/entities/school.entity';
 
 @Injectable()
 export class GradeService {
@@ -20,11 +22,11 @@ export class GradeService {
     if (await this.repo.findOne({ where: { name } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
-    const newUser = this.repo.create({ name });
+    const newUser = this.repo.create({ name   });
     return await this.repo.save(newUser);
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<Grade>): Promise<PageDto<Grade>> {
+  async findAll(pageOptions: PageOptionsDto, query: Partial<Grade>, user:User): Promise<PageDto<Grade>> {
     const queryBuilder = this.repo.createQueryBuilder('grade').leftJoinAndSelect('grade.school', 'school');;
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
@@ -35,6 +37,44 @@ export class GradeService {
           queryBuilder.andWhere(`grade.${key} = :${key}`, { [key]: query[key] });
         }
       });
+    }
+
+    if (!user?.isAdmin) {
+      // Nếu user thuộc trường tiểu học, chỉ lấy lớp từ 1 đến 5
+      if (user.school.schoolType === SchoolType['Tiểu học']) {
+        queryBuilder.andWhere(`grade.name BETWEEN :min AND :max`, {
+          min: '1',
+          max: '5',
+        });
+      }
+
+      else if (user.school.schoolType === SchoolType['THCS']) {
+        queryBuilder.andWhere(`grade.name BETWEEN :min AND :max`, {
+          min: '6',
+          max: '9',
+        });
+      }
+
+      else if (user.school.schoolType === SchoolType['THPT']) {
+        queryBuilder.andWhere(`grade.name BETWEEN :min AND :max`, {
+          min: '10',
+          max: '12',
+        });
+      }
+
+      else if (user.school.schoolType === SchoolType['TH&THCS']) {
+        queryBuilder.andWhere(`grade.name BETWEEN :min AND :max`, {
+          min: '1',
+          max: '9',
+        });
+      }
+
+      else if (user.school.schoolType === SchoolType['THCS&THPT']) {
+        queryBuilder.andWhere(`grade.name BETWEEN :min AND :max`, {
+          min: '6',
+          max: '12',
+        });
+      }
     }
 
     //search document
@@ -52,6 +92,8 @@ export class GradeService {
     const itemCount = await queryBuilder.getCount();
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
     const { entities } = await queryBuilder.getRawAndEntities();
+
+    console.log(entities);
 
     return new PageDto(entities, pageMetaDto);
   }

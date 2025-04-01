@@ -18,7 +18,7 @@ export class Subject extends BaseWithCreatedBy {
     grade: Grade;
 
     @ManyToOne(() => School, (school) => school.subjects, { onDelete: 'SET NULL' })
-    school: School;
+    school?: School = null;
 
     // Một môn học có thể có nhiều user
     @ManyToMany(() => User, (user) => user.subjects)

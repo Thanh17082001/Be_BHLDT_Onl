@@ -1,6 +1,6 @@
 import { BaseWithCreatedBy } from "src/common/entities/base-user-createdBy";
 import { AbstractEntity } from "src/common/entities/base.entity";
-import { School } from "src/schools/entities/school.entity";
+import { School, SchoolType } from "src/schools/entities/school.entity";
 import { Subject } from "src/subjects/entities/subject.entity";
 import { User } from "src/users/entities/user.entity";
 import { Column, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany } from "typeorm";
@@ -18,8 +18,10 @@ export class Grade extends BaseWithCreatedBy {
     users: User[];
 
     @ManyToOne(() => School, (school) => school.grades, { onDelete: 'SET NULL' })
-    @JoinColumn({ name: 'school_id' })
     school: School;
+
+    //   @Column({ type: 'enum', enum: SchoolType, nullable: true })
+    // schoolType: string;
 
     // Một khối có nhiều môn học
     @OneToMany(() => Subject, (subject) => subject.grade)

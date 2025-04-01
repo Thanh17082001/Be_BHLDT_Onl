@@ -37,7 +37,7 @@ export class ClassService {
     if (!grade) {
       throw new HttpException('Lớp không tồn tại', 409);
     }
-    const newClass = this.repo.create({ ...createClassDto, name: name, grade, createdBy: user, school: school ?? null, schoolYear });
+    const newClass = this.repo.create({ ...createClassDto, name: name, grade, createdBy: user.isAdmin ? null : user, school: school ?? null, schoolYear });
     return await this.repo.save(newClass);
   }
 
@@ -99,7 +99,7 @@ export class ClassService {
 
   async findOne(id: number): Promise<ItemDto<Class>> {
 
-    const example = await this.repo.findOne({ where: { id } });
+    const example = await this.repo.findOne({ where: { id }, relations: ['grade', 'school', 'schoolYear'] });
     if (!example) {
       throw new HttpException('Not found', 404);
     }

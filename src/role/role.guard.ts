@@ -23,6 +23,9 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request['user'];
+    if (requiredRoles == undefined  || requiredRoles?.length == 0 ) {
+      return false;
+    }
 
     if (!user) return false;
 
@@ -31,12 +34,12 @@ export class RolesGuard implements CanActivate {
     if(user.isAdmin) return true;
 
     // ✅ Hiệu trưởng có tất cả quyền trong trường
-    if (user.role === Role.PRINCIPAL && requiredRoles.some(role => role !== Role.ADMIN)) {
+    if (user.role === Role.PRINCIPAL && requiredRoles?.some(role => role !== Role.ADMIN)) {
       return true;
     }
 
     // ✅ Giáo viên chỉ có quyền xem môn học họ quản lý
-    if (requiredRoles.includes(Role.TEACHER) && [Role.PRINCIPAL, Role.ADMIN].includes(user.role)) {
+    if (requiredRoles?.includes(Role.TEACHER) && [Role.PRINCIPAL, Role.ADMIN]?.includes(user.role)) {
       return true;
     }
 

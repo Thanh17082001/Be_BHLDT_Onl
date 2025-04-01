@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { resizeImage } from './../utils/resize-image';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 
@@ -23,120 +28,140 @@ import { User } from 'src/users/entities/user.entity';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { subscribe } from 'diagnostics_channel';
 
-
-
 @Injectable()
 export class FileService {
- constructor(
-   @InjectRepository(File) private repo: Repository<File>,
-   @InjectRepository(Image) private repoImage: Repository<Image>,
-   @InjectRepository(School) private repoSchool: Repository<School>,
-   @InjectRepository(FileType) private repoFileType: Repository<FileType>,
-   @InjectRepository(Topic) private repoTopic: Repository<Topic>,
-   @InjectRepository(Subject) private repoSubject: Repository<Subject>,
-     ) {}
+  constructor(
+    @InjectRepository(File) private repo: Repository<File>,
+    @InjectRepository(Image) private repoImage: Repository<Image>,
+    @InjectRepository(School) private repoSchool: Repository<School>,
+    @InjectRepository(FileType) private repoFileType: Repository<FileType>,
+    @InjectRepository(Topic) private repoTopic: Repository<Topic>,
+    @InjectRepository(Subject) private repoSubject: Repository<Subject>,
+  ) {}
 
   async create(createFileDto: CreateFileDto, images: string[] = [], user) {
     console.log(createFileDto);
     createFileDto.createdBy = user;
-    createFileDto.schoolId = user?.school?.id ?? 1;
-    const school = await this.repoSchool.findOne({ where: { id: createFileDto.schoolId } });
-    const fileType = await this.repoFileType.findOne({ where: { id: createFileDto.filetypeId } });
-    const topic = await this.repoTopic.findOne({ where: { id: createFileDto.topicId } });
-    const subject = await this.repoSubject.findOne({ where: { id: createFileDto.subjectId } });
-    const file = await this.repo.findOne({ where: { id: createFileDto.parentId } });
+    createFileDto.schoolId = user?.school?.id;
+    const school = await this.repoSchool.findOne({
+      where: { id: createFileDto.schoolId ?? -1 },
+    });
+    const fileType = await this.repoFileType.findOne({
+      where: { id: +createFileDto.filetypeId },
+    });
+    const topic = await this.repoTopic.findOne({
+      where: { id: +createFileDto.topicId },
+    });
+    const subject = await this.repoSubject.findOne({
+      where: { id: +createFileDto.subjectId },
+    });
+    const file = await this.repo.findOne({
+      where: { id: +createFileDto.parentId },
+    });
 
-    const fileCreate = this.repo.create(createFileDto)
-    let resutlImages:Image[] = []
+    const fileCreate = this.repo.create(createFileDto);
+    let resutlImages: Image[] = [];
     if (images.length > 0) {
       for (let i = 0; i < images?.length; i++) {
         const imageDto: CreateImageDto = {
           name: createFileDto.name,
           fileId: fileCreate.id,
-          path: images[i] || ''
-        }
-        const image = await this.repoImage.create(imageDto)
-        resutlImages.push(image)
+          path: images[i] || '',
+        };
+        const image = await this.repoImage.create(imageDto);
+        resutlImages.push(image);
       }
     }
-    const data = { ...fileCreate, images: resutlImages, school, fileType: fileType ?? null, topic: topic ?? null, subject: subject ?? null, parent: createFileDto.isFolder? file: null ,createedBy: user.isdAdmin? null: user };
+    const data = {
+      ...fileCreate,
+      images: resutlImages,
+      school,
+      fileType: fileType ?? null,
+      topic: topic ?? null,
+      subject: subject ?? null,
+      parent: file ? file : null,
+      createedBy: user,
+    };
     const fileTypeEntity = await this.repo.save(data);
     return fileTypeEntity;
   }
 
   async findAll(
-      pageOptions: PageOptionsDto,
-      query: Partial<File>,
-      user: User
-    ): Promise<PageDto<File>> {
-    const queryBuilder = this.repo.createQueryBuilder('file')
-      .leftJoinAndSelect('file.fileType', 'fileType') 
-        .leftJoinAndSelect('file.subject', 'subject')
-        .leftJoinAndSelect('file.topic', 'topic')
-        .leftJoinAndSelect('file.images', 'images')
-        .leftJoinAndSelect('file.school', 'school') // Lấy thông tin trường
+    pageOptions: PageOptionsDto,
+    query: Partial<File>,
+    user: User,
+  ): Promise<PageDto<File>> {
+    const queryBuilder = this.repo
+      .createQueryBuilder('file')
+      .leftJoinAndSelect('file.fileType', 'fileType')
+      .leftJoinAndSelect('file.subject', 'subject')
+      .leftJoinAndSelect('file.topic', 'topic')
+      .leftJoinAndSelect('file.images', 'images')
+      .leftJoinAndSelect('file.school', 'school') // Lấy thông tin trường
       .leftJoinAndSelect('school.users', 'users')
-      .leftJoinAndSelect('users.subjects', 'userSubjects'); 
-      ; // Lấy danh sách giáo viên phụ trách môn học
-  
-      const { page, take, skip, order, search } = pageOptions;
-      const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
-  
-      // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-      if (!!query && Object.keys(query).length > 0) {
-        Object.keys(query).forEach((key) => {
-          if (key !== undefined && key !== null && !pagination.includes(key)) {
-            
-              queryBuilder.andWhere(`file.${key} = :${key}`, { [key]: query[key] })
-          }
-        });
-      }
-  
+      // .leftJoinAndSelect('file.children', 'children') // Lấy danh sách các file con
+      .leftJoinAndSelect('users.subjects', 'userSubjects'); // Lấy danh sách giáo viên phụ trách môn học
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+
     if (user) {
       // 🎯 Phân quyền dữ liệu
       if (user?.role === Role.TEACHER) {
         const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
-        queryBuilder.andWhere(
-          '(users.id = :userId OR file.created_by = :userId OR file.created_by IS NULL) ' +
-          'AND (school.id = :schoolId OR school.id IS NULL)',
-          {
-            userId: user.id,
-            schoolId: user.school.id,
-          }
-        );
 
         if (subjectIds.length > 0) {
-          console.log(subjectIds);
-          queryBuilder.andWhere('file.subject_id IN (:...subjectIds)', {
-            subjectIds,
-          });
+          queryBuilder.andWhere(
+            'file.subject.id IN (:...subjectIds) OR file.schoolId IS NULL',
+            { subjectIds }
+          )
         }
       } else if (user.role === Role.PRINCIPAL) {
         queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
-          schoolId: user.school.id
+          schoolId: user.school.id,
         });
       }
-      }
-  
-      // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
-      if (search) {
-        queryBuilder.andWhere(`LOWER(unaccent("subject".name)) ILIKE LOWER(unaccent(:search))`, {
-          search: `%${search}%`,
-        });
-      }
-  
-      // 🎯 Phân trang và sắp xếp
-      queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(take);
-  
-      const itemCount = await queryBuilder.getCount();
-      const { entities } = await queryBuilder.getRawAndEntities();
-  
-      return new PageDto(entities, new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }));
     }
 
-  findOne(id: number) {
-    return `This action returns a #${id} file`;
+    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
+    if (!!query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
+        if (key !== undefined && key !== null && !pagination.includes(key)) {
+          queryBuilder.andWhere(`file.${key} = :${key}`, { [key]: query[key] });
+        }
+      });
+    }
+
+   
+
+    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
+    if (search) {
+      queryBuilder.andWhere(
+        `LOWER(unaccent("subject".name)) ILIKE LOWER(unaccent(:search))`,
+        {
+          search: `%${search}%`,
+        },
+      );
+    }
+
+    // 🎯 Phân trang và sắp xếp
+    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(take);
+
+    const itemCount = await queryBuilder.getCount();
+    const { entities } = await queryBuilder.getRawAndEntities();
+
+    return new PageDto(
+      entities,
+      new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
+    );
+  }
+
+  async findOne(id: number) {
+    const resource = await this.repo.findOne({
+      where: { id },
+      relations: ['images', 'children', 'fileType'],
+    });
+    return new ItemDto(resource);
   }
 
   update(id: number, updateFileDto: UpdateFileDto) {
@@ -144,17 +169,37 @@ export class FileService {
   }
 
   async remove(id: number) {
-      const resource = await this.repo.findOne({ where: { id }, relations: ['images'] });
-      if (!resource) {
-        throw new NotFoundException('Không tìm thấy tài nguyên');
+    const resource = await this.repo.findOne({
+      where: { id },
+      relations: ['images', 'children', 'createdBy', 'school'],
+    });
+
+    if (!resource) {
+      throw new NotFoundException('Không tìm thấy tài nguyên');
     }
-    
+
+    if (resource.school == null || resource.createdBy.isAdmin) {
+      throw new ForbiddenException('Không có quyền xóa');
+    }
+
+    // Nếu có file con, xóa tất cả đệ quy
+    if (resource.children && resource.children.length > 0) {
+      for (const child of resource.children) {
+        await this.remove(child.id);
+      }
+    }
+
     const oldImagePath = path.join(__dirname, '..', '..', resource.path);
-    if (existsSync(oldImagePath)) {
+    if (existsSync(oldImagePath) && resource.path) {
       unlinkSync(oldImagePath);
       for (let i = 0; i < resource?.images?.length; i++) {
         const priviewImageOld = path.join(__dirname, '..', '..', resource.path);
-        const imageConvertOld = path.join(__dirname, '..', '..', resource.images[i].path);
+        const imageConvertOld = path.join(
+          __dirname,
+          '..',
+          '..',
+          resource.images[i].path,
+        );
 
         if (existsSync(priviewImageOld)) {
           await this.repoImage.delete(resource.images[i].id);
@@ -166,8 +211,8 @@ export class FileService {
         }
       }
     }
-      return new ItemDto(await this.repo.delete(id));
-    }
+    return new ItemDto(await this.repo.delete(id));
+  }
 
   async resizeImage(buffer: Buffer, linkFile: string): Promise<string> {
     try {
@@ -201,9 +246,10 @@ export class FileService {
       await pdfPoppler.convert(pdfPath, options);
       // Lấy danh sách các tệp đã chuyển đổi
       const newFiles = await fs.readdir(outputDir);
-      const outputFiles: string[] = newFiles.filter(file => file.endsWith('.png') && !existingFiles.has(file)).map(file => `public/images-convert/${file}`);
+      const outputFiles: string[] = newFiles
+        .filter((file) => file.endsWith('.png') && !existingFiles.has(file))
+        .map((file) => `public/images-convert/${file}`);
 
-      
       return outputFiles;
     } catch (error) {
       console.error('Error converting PDF to images:', error);

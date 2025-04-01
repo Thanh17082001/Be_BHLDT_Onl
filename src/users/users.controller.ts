@@ -96,6 +96,7 @@ export class UsersController {
     }
 
     @Post('admin')
+    // @Public()
     async create() {
         const userDto: CreateUserDto = {
             fullName: 'Quản Trị Viên',

@@ -42,6 +42,8 @@ export class SubjectsController {
   }
 
   @Delete(':id')
+  @Roles(Role.TEACHER)
+
   remove(@Param('id') id: string) {
     return this.examplesService.remove(+id);
   }

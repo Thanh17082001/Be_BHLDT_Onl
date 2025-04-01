@@ -10,6 +10,7 @@ import * as express from 'express';
 import { join } from 'path';
 import { StaticFilesMiddleware } from 'src/common/middlewares/static-files.middleware';
 import { AppModule } from './app.module';
+import { DoaminsService } from './doamins/doamins.service';
 
 
 
@@ -23,8 +24,12 @@ async function bootstrap() {
 
   //middleware block static file
 
+  const domainsService = app.get(DoaminsService);
 
-  app.use('/public', new StaticFilesMiddleware().use);
+  // Tạo middleware và inject DomainsService vào
+
+
+  app.use('/public', new StaticFilesMiddleware(domainsService).use);
 
   app.use(express.static(join(__dirname, '..' )));
   app.use(express.json({ limit: '1024mb' }))

@@ -1,7 +1,7 @@
 import { CreateTopicDto } from './dto/create-topic.dto';
 import { UpdateTopicDto } from './dto/update-topic.dto';
 
-import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
@@ -22,7 +22,8 @@ export class TopicsService {
 
   ) { }
   async create(createTopicDto: CreateTopicDto, user: User): Promise<Topic> {
-    const school = await this.repoSchool.findOne({ where: { id: user.school.id } });
+    console.log(user?.school?.id);
+    const school = await this.repoSchool.findOne({ where: { id: user?.school?.id  ?? -1 } });
     const topic: Topic = await this.repo.findOne({ where: { name: createTopicDto.name }, relations: ['subject'] })
     const subject: Subject = await this.repoSubject.findOne({
       where: {
@@ -43,7 +44,7 @@ export class TopicsService {
     // }
     // subject.topics.push(cls)
 
-    const newTopic = await this.repo.save({ name: createTopicDto.name, subject, school });
+    const newTopic = await this.repo.save({ name: createTopicDto.name, subject, school, createBy: user });
     // await this.repoSubject.save(subject);
     return newTopic;
   }
@@ -65,19 +66,19 @@ export class TopicsService {
 
      // 🎯 Phân quyền dữ liệu
         if (user.role === Role.TEACHER) {
-          queryBuilder.andWhere(
-            '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
-            {
-              userId: user.id,
-              schoolId: user.school.id
-            }
-          );
+          // queryBuilder.andWhere(
+          //   '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
+          //   {
+          //     userId: user.id,
+          //     schoolId: user.school.id
+          //   }
+          // );
 
           const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
 
           if (subjectIds.length > 0) {
-            queryBuilder.andWhere('subject.id IN (:...subjectIds)', {
+            queryBuilder.andWhere('subject.id IN (:...subjectIds) OR school.id IS NULL', {
               subjectIds,
             });
           }
@@ -142,9 +143,12 @@ export class TopicsService {
   }
 
   async remove(id: number) {
-    const example = this.repo.findOne({ where: { id } });
-    if (!example) {
+    const resource = await this.repo.findOne({ where: { id }, relations:[ 'createdBy','school'] });
+    if (!resource) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
+    }
+    if (resource.school == null || resource?.createdBy?.isAdmin) {
+      throw new ForbiddenException('Không có quyền xóa');
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

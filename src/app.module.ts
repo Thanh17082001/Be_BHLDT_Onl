@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from 'src/config/configuration';
@@ -21,14 +21,21 @@ import { TypeScoreModule } from './type-score/type-score.module';
 import { FileModule } from './file/file.module';
 import { ImageModule } from './image/image.module';
 import { JwtModule } from '@nestjs/jwt';
+import { DoaminsModule } from './doamins/doamins.module';
+import { StaticFilesMiddleware } from './common/middlewares/static-files.middleware';
+import { StudentModule } from './student/student.module';
+import { ProvinceModule } from './province/province.module';
+import { DistrictModule } from './district/district.module';
+import { WardModule } from './ward/ward.module';
+import { ScoreModule } from './score/score.module';
 
 @Module({
   imports: [
     JwtModule.register({
-        global: true,
-        secret: 'thienthanh132',
-        signOptions: { expiresIn: '10s' },
-      }),
+      global: true,
+      secret: 'thienthanh132',
+      signOptions: { expiresIn: '60m' },
+    }),
     ConfigModule.forRoot({
       load: [configuration],
       isGlobal: true,
@@ -55,7 +62,29 @@ import { JwtModule } from '@nestjs/jwt';
           console.log(error);
         }
       },
-    }), ExamplesModule, UsersModule, SchoolsModule, GradeModule, SubjectsModule, AuthModule, RoleModule, TopicsModule, SchoolYearModule, ClassModule, FileTypeModule, PartModule, TypeVoiceModule, TypeScoreModule, FileModule, ImageModule
+    }),
+    ExamplesModule,
+    UsersModule,
+    SchoolsModule,
+    GradeModule,
+    SubjectsModule,
+    AuthModule,
+    RoleModule,
+    TopicsModule,
+    SchoolYearModule,
+    ClassModule,
+    FileTypeModule,
+    PartModule,
+    TypeVoiceModule,
+    TypeScoreModule,
+    FileModule,
+    ImageModule,
+    DoaminsModule,
+    StudentModule,
+    ProvinceModule,
+    DistrictModule,
+    WardModule,
+    ScoreModule
   ],
   controllers: [],
   providers: [

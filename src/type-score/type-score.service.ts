@@ -16,11 +16,11 @@ export class TypeScoreService {
     @InjectRepository(TypeScore) private repo: Repository<TypeScore>,
   ) { }
   async create(createTypeScoreDto: CreateTypeScoreDto): Promise<TypeScore> {
-    const { name } = createTypeScoreDto;
+    const { name, coefficient } = createTypeScoreDto;
     if (await this.repo.findOne({ where: { name } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
-    const newUser = this.repo.create({ name });
+    const newUser = this.repo.create({ name, coefficient });
     return await this.repo.save(newUser);
   }
 

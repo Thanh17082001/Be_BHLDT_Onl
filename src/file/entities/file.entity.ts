@@ -29,9 +29,9 @@ export class File extends BaseWithCreatedBy {
     @JoinColumn({ name: "subject_id" })
     subject?: Subject | null;
 
-    @ManyToOne(() => School, { nullable: false })
+    @ManyToOne(() => School, { nullable: true })
     @JoinColumn({ name: "schoolId" })
-    school: School;
+    school?: School = null;
 
     @Column({ default: true })
     isFolder: boolean;
@@ -39,6 +39,9 @@ export class File extends BaseWithCreatedBy {
     @ManyToOne(() => File, (file) => file.id, { nullable: true })
     @JoinColumn({ name: "parent_id" })
     parent?: File | null;
+
+    @OneToMany(() => File, (file) => file.parent, { cascade: true, onDelete: 'CASCADE' })
+    children: File[];
 
     @OneToMany(() => Image, (image) => image.file, { cascade: true, onDelete: 'CASCADE' })
     images: Image[]
