@@ -27,6 +27,7 @@ import { Role } from 'src/role/role.enum';
 import { User } from 'src/users/entities/user.entity';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { subscribe } from 'diagnostics_channel';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class FileService {
@@ -104,21 +105,36 @@ export class FileService {
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
+    //phân quyền dữ liệu
     if (user) {
-      // 🎯 Phân quyền dữ liệu
-      if (user?.role === Role.TEACHER) {
+      const schoolTypesQuery = schoolTypes(user);
+      if (user.role === Role.TEACHER) {
         const subjectIds = user.subjects?.map((subject) => subject.id) || [];
-
 
         if (subjectIds.length > 0) {
           queryBuilder.andWhere(
-            'file.subject.id IN (:...subjectIds) OR file.schoolId IS NULL',
-            { subjectIds }
-          )
+            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+            {
+              subjectIds,
+              isAdmin: true,
+              schoolTypesQuery,
+            },
+          );
         }
       } else if (user.role === Role.PRINCIPAL) {
-        queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
-          schoolId: user.school.id,
+        queryBuilder.andWhere(
+          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
+          {
+            schoolId: user.school.id,
+            isAdmin: true, // Thêm điều kiện isAdmin = true
+            schoolTypesQuery,
+          },
+        );
+      }
+      // admin
+      else {
+        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
+          schoolTypesQuery,
         });
       }
     }
@@ -168,7 +184,7 @@ export class FileService {
     return `This action updates a #${id} file`;
   }
 
-  async remove(id: number) {
+  async remove(id: number,user:User) {
     const resource = await this.repo.findOne({
       where: { id },
       relations: ['images', 'children', 'createdBy', 'school'],
@@ -177,15 +193,16 @@ export class FileService {
     if (!resource) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
+    console.log(resource);
 
-    if (resource.school == null || resource.createdBy.isAdmin) {
+    if ( !user.createdBy.isAdmin) {
       throw new ForbiddenException('Không có quyền xóa');
     }
 
     // Nếu có file con, xóa tất cả đệ quy
     if (resource.children && resource.children.length > 0) {
       for (const child of resource.children) {
-        await this.remove(child.id);
+        await this.remove(child.id, user);
       }
     }
 

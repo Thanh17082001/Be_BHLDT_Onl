@@ -15,6 +15,8 @@ import { ChangePassDto } from './dto/change-pass.dto';
 import { RolesGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
+import { CreateUserAdminDto } from './dto/create-admin.dto';
+import { School } from 'src/schools/entities/school.entity';
 
 @Controller('user')
 @UseGuards(RolesGuard)
@@ -96,14 +98,20 @@ export class UsersController {
     }
 
     @Post('admin')
-    // @Public()
-    async create() {
+    @Public()
+    async create(@Body() createUserDto: CreateUserAdminDto) {
+        const school: any = await this.schoolService.findByTypeSchoolIsAdmin(createUserDto.schoolType);
+        const schoolType = {
+            'Tiểu học':'TH',
+            'THCS':'THCS',
+            'THPT':'THPT',
+        }
         const userDto: CreateUserDto = {
-            fullName: 'Quản Trị Viên',
-            username: 'admin',
+            fullName: `Quản Trị Viên ${schoolType[createUserDto.schoolType]}`,
+            username: `admin${schoolType[createUserDto.schoolType]}`,
             role: 'Quản trị viên',
             password: '1',
-            schoolId: -1,
+            schoolId: school?.id,
             gradeIds: [],
             subjectIds: [],
             isAdmin: true,

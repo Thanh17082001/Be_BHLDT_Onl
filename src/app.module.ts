@@ -28,6 +28,11 @@ import { ProvinceModule } from './province/province.module';
 import { DistrictModule } from './district/district.module';
 import { WardModule } from './ward/ward.module';
 import { ScoreModule } from './score/score.module';
+import { LevelModule } from './level/level.module';
+import { TypeQuestionModule } from './type-question/type-question.module';
+import { AnswerModule } from './answer/answer.module';
+import { QuestionModule } from './question/question.module';
+import { ExamModule } from './exam/exam.module';
 
 @Module({
   imports: [
@@ -84,7 +89,12 @@ import { ScoreModule } from './score/score.module';
     ProvinceModule,
     DistrictModule,
     WardModule,
-    ScoreModule
+    ScoreModule,
+    LevelModule,
+    TypeQuestionModule,
+    AnswerModule,
+    QuestionModule,
+    ExamModule
   ],
   controllers: [],
   providers: [

@@ -1,5 +1,5 @@
-import { CreateGradeDto } from './dto/create-grade.dto';
-import { UpdateGradeDto } from './dto/update-grade.dto';
+import { CreateTypeQuestionDto } from './dto/create-type-question.dto';
+import { UpdateTypeQuestionDto } from './dto/update-type-question.dto';
 
 import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -8,69 +8,44 @@ import { In, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
-import { Grade } from './entities/grade.entity';
-import { User } from 'src/users/entities/user.entity';
-import { SchoolType } from 'src/schools/entities/school.entity';
+import { TypeQuestion } from './entities/type-question.entity';
 
 @Injectable()
-export class GradeService {
+export class TypeQuestionService {
   constructor(
-    @InjectRepository(Grade) private repo: Repository<Grade>,
+    @InjectRepository(TypeQuestion) private repo: Repository<TypeQuestion>,
   ) { }
-  async create(createGradeDto: CreateGradeDto): Promise<Grade> {
-    const { name } = createGradeDto;
+  async create(createTypeQuestionDto: CreateTypeQuestionDto): Promise<TypeQuestion> {
+    const { name, order } = createTypeQuestionDto;
     if (await this.repo.findOne({ where: { name } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
-    const newUser = this.repo.create({ name   });
+    const newUser = this.repo.create({ name,order });
     return await this.repo.save(newUser);
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<Grade>, user:User): Promise<PageDto<Grade>> {
-    const queryBuilder = this.repo.createQueryBuilder('grade').leftJoinAndSelect('grade.school', 'school');;
+  async findAll(pageOptions: PageOptionsDto, query: Partial<TypeQuestion>): Promise<PageDto<TypeQuestion>> {
+    const queryBuilder = this.repo.createQueryBuilder('type_question');
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
-    if (!user?.isAdmin) {
-      // Định nghĩa khoảng lớp theo loại trường
-      const gradeRanges: Record<SchoolType, { min: string; max: string }> = {
-        [SchoolType['Tiểu học']]: { min: '1', max: '5' },
-        [SchoolType['THCS']]: { min: '6', max: '9' },
-        [SchoolType['THPT']]: { min: '10', max: '12' },
-        [SchoolType['TH&THCS']]: { min: '1', max: '9' },
-        [SchoolType['THCS&THPT']]: { min: '6', max: '12' },
-      };
-
-      // Lấy khoảng lớp phù hợp theo schoolType
-      const range = gradeRanges[user.school.schoolType];
-
-      if (range) {
-        queryBuilder.andWhere(`CAST(grade.name AS INTEGER) BETWEEN :min AND :max`, {
-          min: range.min,
-          max: range.max,
-        });
-      }
-    }
-
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
         if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`grade.${key} = :${key}`, { [key]: query[key] });
+          queryBuilder.andWhere(`type_question.${key} = :${key}`, { [key]: query[key] });
         }
       });
     }
 
-    
-
     //search document
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(grade.name)) ILIKE LOWER(unaccent(:search))`, {
+      queryBuilder.andWhere(`LOWER(unaccent(type_question.name)) ILIKE LOWER(unaccent(:search))`, {
         search: `%${search}%`,
       });
     }
 
 
-    queryBuilder.orderBy(`grade.createdAt`, order)
+    queryBuilder.orderBy(`type_question.order`, 'ASC')
       .skip(skip)
       .take(take);
 
@@ -78,11 +53,10 @@ export class GradeService {
     const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
     const { entities } = await queryBuilder.getRawAndEntities();
 
-
     return new PageDto(entities, pageMetaDto);
   }
 
-  async findOne(id: number): Promise<ItemDto<Grade>> {
+  async findOne(id: number): Promise<ItemDto<TypeQuestion>> {
 
     const example = await this.repo.findOne({ where: { id } });
     if (!example) {
@@ -92,9 +66,9 @@ export class GradeService {
   }
 
   async findOrCreateByNames(names: string[], schoolId: number): Promise<number[]> {
-    
+
     // Lấy danh sách các khối 
-    const existingGrades = await this.repo.find({
+    const existingTypeQuestions = await this.repo.find({
       where: {
         name: In(names),
       },
@@ -104,7 +78,7 @@ export class GradeService {
 
 
     // Tạo Map để kiểm tra trùng lặp nhanh hơn
-    const existingMap = new Map(existingGrades.map(grade => [grade.name, grade.id]));
+    const existingMap = new Map(existingTypeQuestions.map(grade => [grade.name, grade.id]));
 
     // Lọc ra những khối chưa tồn tại theo tên (không phân biệt hoa thường)
     const newNames = names.filter(name => !existingMap.has(name));
@@ -116,38 +90,38 @@ export class GradeService {
     if (newNames.length > 0) {
       // Tạo khối mới
       console.log('đây');
-      const newGrades = newNames.map(name => this.repo.create({
+      const newTypeQuestions = newNames.map(name => this.repo.create({
         name,
       }));
 
-      const savedGrades = await this.repo.save(newGrades);
+      const savedTypeQuestions = await this.repo.save(newTypeQuestions);
 
       // Thêm ID của khối mới vào danh sách trả về
-      newIds = savedGrades.map(grade => grade.id);
+      newIds = savedTypeQuestions.map(grade => grade.id);
     }
 
     // Trả về danh sách ID của tất cả khối đã có và mới tạo
     return [...Array.from(existingMap.values()), ...newIds];
   }
 
-  async findByIds(gradeIds: number[]): Promise<Grade[]> {
+  async findByIds(gradeIds: number[]): Promise<TypeQuestion[]> {
     return this.repo.find({ where: { id: In(gradeIds) } });
   }
 
-  async update(id: number, updateGradeDto: UpdateGradeDto) {
-    const { name } = updateGradeDto;
-    const exampleExits: Grade = await this.repo.findOne({ where: { name, id: Not(id) } });
+  async update(id: number, updateTypeQuestionDto: UpdateTypeQuestionDto) {
+    const { name } = updateTypeQuestionDto;
+    const exampleExits: TypeQuestion = await this.repo.findOne({ where: { name, id: Not(id) } });
     if (exampleExits) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
 
-    const example: Grade = await this.repo.findOne({ where: { id } });
+    const example: TypeQuestion = await this.repo.findOne({ where: { id } });
 
     if (!example) {
-      throw new NotFoundException(`Grade with ID ${id} not found`);
+      throw new NotFoundException(`TypeQuestion with ID ${id} not found`);
     }
 
-    Object.assign(example, updateGradeDto)
+    Object.assign(example, updateTypeQuestionDto)
 
     await this.repo.update(id, example)
 

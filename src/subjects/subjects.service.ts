@@ -18,6 +18,7 @@ import { GradeService } from 'src/grade/grade.service';
 import { User } from 'src/users/entities/user.entity';
 import { Role } from 'src/role/role.enum';
 import { School } from 'src/schools/entities/school.entity';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class SubjectsService {
@@ -31,7 +32,8 @@ export class SubjectsService {
     createSubjectDto: CreateSubjectDto,
     user: User,
   ): Promise<Subject> {
-    createSubjectDto.schoolId = user?.school?.id || null;
+
+    createSubjectDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
       where: { id: createSubjectDto.schoolId },
     });
@@ -51,7 +53,7 @@ export class SubjectsService {
       name: `${name} ${grade.name}`,
       grade,
       createdBy: user,
-      school: user.isAdmin ? null : school,
+      school: school,
     });
     return await this.repo.save(newSubject);
   }
@@ -70,23 +72,40 @@ export class SubjectsService {
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-    // 🎯 Phân quyền dữ liệu
-    if (user.role === Role.TEACHER) {
-      const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+    //phân quyền dữ liệu
+    if (user) {
+      const schoolTypesQuery = schoolTypes(user);
+      if (user.role === Role.TEACHER) {
+        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
-      if (subjectIds.length > 0) {
+        if (subjectIds.length > 0) {
+          queryBuilder.andWhere(
+            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+            {
+              subjectIds,
+              isAdmin: true,
+              schoolTypesQuery,
+            },
+          );
+        }
+      } else if (user.role === Role.PRINCIPAL) {
         queryBuilder.andWhere(
-          'subject.id IN (:...subjectIds) OR school.id IS NULL',
+          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
           {
-            subjectIds,
+            schoolId: user.school.id,
+            isAdmin: true, // Thêm điều kiện isAdmin = true
+            schoolTypesQuery,
           },
         );
       }
-    } else if (user.role === Role.PRINCIPAL) {
-      queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
-        schoolId: user.school.id,
-      });
+        // admin
+      else {
+        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
+          schoolTypesQuery,
+        });
+      }
     }
+    
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
@@ -100,7 +119,6 @@ export class SubjectsService {
     }
 
     
-
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {
       queryBuilder.andWhere(
@@ -124,7 +142,7 @@ export class SubjectsService {
   }
 
   async findOne(id: number): Promise<ItemDto<Subject>> {
-    const example = await this.repo.findOne({ where: { id } });
+    const example = await this.repo.findOne({ where: { id }, relations:['topics'] });
     if (!example) {
       throw new HttpException('Not found', 404);
     }
@@ -226,7 +244,7 @@ export class SubjectsService {
     return new ItemDto(example);
   }
 
-  async remove(id: number) {
+  async remove(id: number, user:User) {
     const example: Subject = await this.repo.findOne({
       where: { id },
       relations: ['createdBy', 'school'],
@@ -236,7 +254,8 @@ export class SubjectsService {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
 
-    if (example.school == null || example?.createdBy?.isAdmin) {
+    if (!example?.createdBy?.isAdmin) {
+      console.log(user);
       throw new ForbiddenException('Không có quyền xóa');
     }
     await this.repo.delete(id);

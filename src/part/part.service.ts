@@ -65,6 +65,16 @@ export class PartService {
     return new ItemDto(example);
   }
 
+  async findByName(name: string): Promise<Part> {
+    const namePart = `Phần ${name}`
+    return await this.repo.findOne({
+      where: {
+        name: namePart
+      }
+    })
+  }
+
+
   async findOrCreateByNames(names: string[], schoolId: number): Promise<number[]> {
 
     // Lấy danh sách các khối 

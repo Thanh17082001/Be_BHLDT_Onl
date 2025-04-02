@@ -12,6 +12,7 @@ import { Subject } from 'src/subjects/entities/subject.entity';
 import { User } from 'src/users/entities/user.entity';
 import { School } from 'src/schools/entities/school.entity';
 import { Role } from 'src/role/role.enum';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class TopicsService {
@@ -55,6 +56,42 @@ export class TopicsService {
       .leftJoinAndSelect('topic.school', 'school').leftJoinAndSelect('topic.createdBy', 'createdBy').leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
+
+    //phân quyền dữ liệu
+    if (user) {
+      const schoolTypesQuery = schoolTypes(user);
+      if (user.role === Role.TEACHER) {
+        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+
+        if (subjectIds.length > 0) {
+          queryBuilder.andWhere(
+            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+            {
+              subjectIds,
+              isAdmin: true,
+              schoolTypesQuery,
+            },
+          );
+        }
+      } else if (user.role === Role.PRINCIPAL) {
+        queryBuilder.andWhere(
+          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
+          {
+            schoolId: user.school.id,
+            isAdmin: true, // Thêm điều kiện isAdmin = true
+            schoolTypesQuery,
+          },
+        );
+      }
+      // admin
+      else {
+        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
+          schoolTypesQuery,
+        });
+      }
+    }
+
+
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
       arrayQuery.forEach((key) => {
@@ -64,30 +101,7 @@ export class TopicsService {
       });
     }
 
-     // 🎯 Phân quyền dữ liệu
-        if (user.role === Role.TEACHER) {
-          // queryBuilder.andWhere(
-          //   '(users.id = :userId OR subject.created_by = :userId OR subject.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
-          //   {
-          //     userId: user.id,
-          //     schoolId: user.school.id
-          //   }
-          // );
-
-          const subjectIds = user.subjects?.map((subject) => subject.id) || [];
-
-
-          if (subjectIds.length > 0) {
-            queryBuilder.andWhere('subject.id IN (:...subjectIds) OR school.id IS NULL', {
-              subjectIds,
-            });
-          }
-        } else if (user.role === Role.PRINCIPAL) {
-          queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
-            schoolId: user.school.id
-          });
-        }
-
+    
     //search document
     if (search) {
       queryBuilder.andWhere(`LOWER(unaccent(topic.name)) ILIKE LOWER(unaccent(:search))`, {

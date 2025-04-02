@@ -31,6 +31,7 @@ export class SubjectsController {
   }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
   findOne(@Param('id') id: string) {
     return this.examplesService.findOne(+id);
   }
@@ -43,9 +44,9 @@ export class SubjectsController {
 
   @Delete(':id')
   @Roles(Role.TEACHER)
-
-  remove(@Param('id') id: string) {
-    return this.examplesService.remove(+id);
+  remove(@Param('id') id: string, @Req() request: Request) {
+    const user = request['user'] ?? null;
+    return this.examplesService.remove(+id, user);
   }
 }
 

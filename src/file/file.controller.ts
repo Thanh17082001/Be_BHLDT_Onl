@@ -83,7 +83,8 @@ export class FileController {
 
   @Delete(':id')
   @Roles(Role.TEACHER)
-  remove(@Param('id') id: string) {
-    return this.fileService.remove(+id);
+  remove(@Param('id') id: string, @Req() request: Request) {
+    const user = request['user'] ?? null;
+    return this.fileService.remove(+id, user);
   }
 }

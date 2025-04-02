@@ -85,6 +85,15 @@ export class SchoolsService {
     return new ItemDto(School);
   }
 
+  async findByTypeSchoolIsAdmin(schoolType: string): Promise<School> {
+
+    const School = await this.repo.findOne({ where: { schoolType, isAdmin:true } });
+    if (!School) {
+      throw new HttpException('Not found', 404);
+    }
+    return School;
+  }
+
   async findOrCreateByName(name: string, typeSchool: string): Promise<number> {
     let school = await this.repo.findOne({
       where: { name: name, schoolType: typeSchool },

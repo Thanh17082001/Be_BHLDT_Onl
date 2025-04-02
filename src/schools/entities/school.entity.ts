@@ -40,6 +40,9 @@ export class School extends AbstractEntity  {
     @OneToMany(() => Class, (cls) => cls.school)
     classes: Class[];
 
+    @Column({nullable:true, default:false})
+    isAdmin?:boolean
+
 
     @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
     @JoinColumn({ name: 'created_by' }) // Tạo cột `created_by` trong DB
