@@ -55,6 +55,8 @@ export class ExamService {
       where: { id: subjectId },
     });
 
+    const questions: Question[] = await this.repoQuestion.findByIds(questionIds);
+
     const newExam = this.repo.create({
       totalEssayScore,
       totalMultipleChoiceScore,
@@ -65,6 +67,7 @@ export class ExamService {
       subject,
       subExam,
       name,
+      questions,
       createdBy: user,
       school: school,
     });
@@ -80,6 +83,10 @@ export class ExamService {
       .createQueryBuilder('exam')
       .leftJoinAndSelect('exam.subject', 'subject')
       .leftJoinAndSelect('exam.questions', 'questions')
+      .leftJoinAndSelect('questions.typeQuestion', 'typeQuestion')
+      .leftJoinAndSelect('questions.part', 'part')
+      .leftJoinAndSelect('questions.level', 'level')
+
       .leftJoinAndSelect('questions.answers', 'answers')
       .leftJoinAndSelect('exam.school', 'school') // Lấy thông tin trường
 
@@ -145,10 +152,32 @@ export class ExamService {
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
 
-    
+    const categorizedExams = entities.map(exam => {
+      const typeQuestionMap = exam.questions.reduce((acc, question) => {
+        const { typeQuestion } = question;
+        const { id: typeQuestionId } = typeQuestion;
+        if (!acc[typeQuestionId]) {
+          acc[typeQuestionId] = [];
+        }
+        acc[typeQuestionId].push(question);
+        return acc;
+      }, {});
 
+
+
+      // Tạo hai mảng cho các loại câu hỏi dựa trên typeQuestionId
+      const MultipleChoiceScore = typeQuestionMap[2] || [];
+      const EssayScore = typeQuestionMap[1] || [];
+
+
+      return {
+        ...exam,
+        MultipleChoiceScore,
+        EssayScore,
+      };
+    });
     return new PageDto(
-      entities,
+      categorizedExams,
       new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
     );
   }
@@ -171,21 +200,25 @@ export class ExamService {
       };
     });
 
+
     return subExams;
   }
   
   groupByPartId(array: any[], parts) {
     const result = array.reduce((acc, question) => {
-      const { partId } = question;
+      const { part } = question;
+      const { id: partId } = part;
+      
       acc[partId] = acc[partId] || [];
       acc[partId].push(question); // Thêm câu hỏi vào phần tương ứng, giữ nguyên thứ tự
       return acc;
     }, {});
 
-    const partObjects = Object.entries(result).map(([partId, questions]) => ({
-      part: parts.find(part => part.id == +partId),
+    const partObjects = Object.entries(result).map(([pathId, questions]) => ({
+      part: parts.find(part => part.id == +pathId),
       questions: questions,
     }));
+
     return partObjects
   }
 
@@ -201,7 +234,8 @@ export class ExamService {
   shuffleByPartIdToObjects(array: any[], parts) {
     // Nhóm câu hỏi theo `partId`
     const groupedByPart: Record<number, any[]> = array.reduce((acc, question) => {
-      const { partId } = question;
+      const { part } = question;
+      const { id: partId } = part;
       acc[partId] = acc[partId] || [];
       acc[partId].push(question);
       return acc;
@@ -219,7 +253,7 @@ export class ExamService {
 
   //
   async findOne(id: number) {
-    const exam = await this.repo.findOne({ where: { id }, relations: ['questions', 'questions.answers'] });
+    const exam = await this.repo.findOne({ where: { id }, relations: ['questions', 'questions.answers', 'questions.typeQuestion', 'questions.part', 'questions.level', 'subject'] });
     if (!exam) {
       throw new HttpException('Not found', 404);
     }
@@ -236,8 +270,8 @@ export class ExamService {
     }, {});
 
     // Tạo các mảng cho các loại câu hỏi dựa trên typeQuestionId
-    const MultipleChoiceScore = typeQuestionMap[1] || [];
-    const EssayScore = typeQuestionMap[2] || [];
+    const MultipleChoiceScore = typeQuestionMap[2] || [];
+    const EssayScore = typeQuestionMap[1] || [];
 
     // Tạo đối tượng kết quả
     const result = {
@@ -245,6 +279,7 @@ export class ExamService {
       MultipleChoiceScore,
       EssayScore,
     };
+    // console.log(await this.generateSubExams(result));
 
 
     return new ItemDto(await this.generateSubExams(result))
@@ -287,7 +322,7 @@ export class ExamService {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
 
-    if (!example?.createdBy?.isAdmin) {
+    if (example?.createdBy?.id !== user.id) {
       console.log(user);
       throw new ForbiddenException('Không có quyền xóa');
     }

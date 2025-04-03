@@ -226,7 +226,7 @@ export class SubjectsService {
       throw new HttpException('Tên đã tồn tại', 409);
     }
 
-    const example: Subject = await this.repo.findOne({ where: { id } });
+    const example: Subject = await this.repo.findOne({ where: { id } , relations:['school', 'createdBy']});
 
     if (!example) {
       throw new NotFoundException(`Subject with ID ${id} not found`);
@@ -237,7 +237,8 @@ export class SubjectsService {
     if (!grade) {
       throw new HttpException('Lớp không tồn tại', 409);
     }
-    Object.assign(example, { name: updateSubjectDto.name, grade });
+    this.repo.merge(example, { name: updateSubjectDto.name, grade });
+    console.log(example);
 
     await this.repo.update(id, example);
 

@@ -33,6 +33,7 @@ import { TypeQuestionModule } from './type-question/type-question.module';
 import { AnswerModule } from './answer/answer.module';
 import { QuestionModule } from './question/question.module';
 import { ExamModule } from './exam/exam.module';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -94,7 +95,8 @@ import { ExamModule } from './exam/exam.module';
     TypeQuestionModule,
     AnswerModule,
     QuestionModule,
-    ExamModule
+    ExamModule,
+    VoiceModule
   ],
   controllers: [],
   providers: [

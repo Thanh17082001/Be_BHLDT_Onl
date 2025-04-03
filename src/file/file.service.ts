@@ -28,6 +28,7 @@ import { User } from 'src/users/entities/user.entity';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { subscribe } from 'diagnostics_channel';
 import { schoolTypes } from 'src/common/constant/type-school-query';
+import { Voice } from 'src/voice/entities/voice.entity';
 
 @Injectable()
 export class FileService {
@@ -100,8 +101,9 @@ export class FileService {
       .leftJoinAndSelect('file.images', 'images')
       .leftJoinAndSelect('file.school', 'school') // Lấy thông tin trường
       .leftJoinAndSelect('school.users', 'users')
-      // .leftJoinAndSelect('file.children', 'children') // Lấy danh sách các file con
-      .leftJoinAndSelect('users.subjects', 'userSubjects'); // Lấy danh sách giáo viên phụ trách môn học
+      .leftJoinAndSelect('users.subjects', 'userSubjects') // Lấy danh sách giáo viên phụ trách môn học
+      .leftJoinAndMapMany('file.voices', Voice, 'voices', 'voices.fileId = file.id')
+      
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 

@@ -28,8 +28,10 @@ async function bootstrap() {
 
   // Tạo middleware và inject DomainsService vào
 
+  const staticFile = new StaticFilesMiddleware(domainsService)
 
-  app.use('/public', new StaticFilesMiddleware(domainsService).use);
+
+  app.use('/public', staticFile.use);
 
   app.use(express.static(join(__dirname, '..' )));
   app.use(express.json({ limit: '1024mb' }))

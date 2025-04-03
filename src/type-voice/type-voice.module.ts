@@ -8,5 +8,6 @@ import { TypeVoice } from './entities/type-voice.entity';
   imports:[TypeOrmModule.forFeature([TypeVoice])],
   controllers: [TypeVoiceController],
   providers: [TypeVoiceService],
+  exports:[TypeOrmModule, TypeVoiceService]
 })
 export class TypeVoiceModule {}
