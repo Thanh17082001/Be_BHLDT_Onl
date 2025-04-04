@@ -19,6 +19,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Role } from 'src/role/role.enum';
 import { School } from 'src/schools/entities/school.entity';
 import { schoolTypes } from 'src/common/constant/type-school-query';
+import { roleQueryPrincipal, queryTeacher } from 'src/common/constant/role-query';
 
 @Injectable()
 export class SubjectsService {
@@ -38,7 +39,7 @@ export class SubjectsService {
       where: { id: createSubjectDto.schoolId },
     });
     const { name, gradeId } = createSubjectDto;
-    if (await this.repo.findOne({ where: { name } })) {
+    if (await this.repo.findOne({ where: { name, grade:{id:gradeId} } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
     const grade: Grade = await this.repoGrade.findOne({
@@ -80,17 +81,17 @@ export class SubjectsService {
 
         if (subjectIds.length > 0) {
           queryBuilder.andWhere(
-            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+            queryTeacher('subject'),
             {
               subjectIds,
-              isAdmin: true,
-              schoolTypesQuery,
-            },
+              created_by: user.id,
+            }
+           
           );
         }
       } else if (user.role === Role.PRINCIPAL) {
         queryBuilder.andWhere(
-          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
+          roleQueryPrincipal,
           {
             schoolId: user.school.id,
             isAdmin: true, // Thêm điều kiện isAdmin = true
@@ -130,7 +131,7 @@ export class SubjectsService {
     }
 
     // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(take);
+    queryBuilder.orderBy('subject.name', 'ASC').skip(skip).take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
@@ -139,6 +140,15 @@ export class SubjectsService {
       entities,
       new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
     );
+  }
+
+  async findByName(name: string): Promise<Subject> {
+
+    const example = await this.repo.findOne({ where: { name }, relations:['grade']});
+    if (!example) {
+      throw new HttpException('Not found', 404);
+    }
+    return example;
   }
 
   async findOne(id: number): Promise<ItemDto<Subject>> {
@@ -169,7 +179,7 @@ export class SubjectsService {
 
     // Chuẩn hóa danh sách tên môn học theo `name + grade.name`
     const formattedNames = grades.flatMap((grade) =>
-      names.map((name) => `${name} lớp ${grade.name}`),
+      names.map((name) => `${name} ${grade.name}`),
     );
 
     // Lấy danh sách môn học đã tồn tại theo `name + grade.name`
@@ -191,7 +201,7 @@ export class SubjectsService {
     const newSubjects = grades.flatMap((grade) =>
       names
         .map((name) => {
-          const fullName = `${name} lớp ${grade.name}`;
+          const fullName = `${name} ${grade.name}`;
           if (!existingMap.has(fullName)) {
             return this.repo.create({
               name: fullName,
@@ -253,6 +263,26 @@ export class SubjectsService {
 
     if (!example) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
+    }
+
+    const isOwner = example?.createdBy?.id === user.id;
+    const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (example?.createdBy.id !== user.id) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (example?.createdBy?.id !== user.id) {
+      console.log(user);
+      throw new ForbiddenException('Không có quyền');
     }
 
     if (!example?.createdBy?.isAdmin) {

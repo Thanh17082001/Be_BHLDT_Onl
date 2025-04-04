@@ -49,7 +49,7 @@ export class ExamService {
 
     createExamDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
-      where: { id: schoolId },
+      where: { id: createExamDto.schoolId },
     });
     const subject: Subject = await this.repoSubject.findOne({
       where: { id: subjectId },
@@ -100,20 +100,21 @@ export class ExamService {
         const subjectIds = user.subjects?.map((subject) => subject.id) || [];
         if (subjectIds.length > 0) {
           queryBuilder.andWhere(
-            '(subject.id IN (:...subjectIds) OR exam.created_by = :created_by)', // danh sách môn cộng câu hỏi chính ng đó tạo
+            '(subject.id IN (:...subjectIds) OR exam.created_by = :created_by OR school.isAdmin = :isAdmin)', // danh sách môn cộng câu hỏi chính ng đó tạo
             {
               subjectIds,
               created_by: user.id,
-              // schoolTypesQuery,
+              isAdmin: true
             },
           );
         }
       } else if (user.role === Role.PRINCIPAL) {
         queryBuilder.andWhere(
-          '(school.id = :schoolId OR exam.created_by = :created_by)',
+          '(school.id = :schoolId OR exam.created_by = :created_by OR school.isAdmin = :isAdmin)',
           {
             schoolId: user.school.id,
             created_by: user.id,
+            isAdmin: true
           },
         );
       }
@@ -285,13 +286,29 @@ export class ExamService {
     return new ItemDto(await this.generateSubExams(result))
   }
 
-  async update(id: number, updateExamDto: Partial<UpdateExamDto>): Promise<Exam> {
+  async update(id: number, updateExamDto: Partial<UpdateExamDto>,user:User): Promise<Exam> {
 
     const exam: Exam = await this.repo.findOne({
       where: {
         id: id
-      }
+      },
+      relations: ['createdBy', 'school', 'questions', 'questions.answers', 'questions.typeQuestion', 'questions.part', 'questions.level'],
     });
+
+    const isOwner = exam?.createdBy?.id === user.id;
+    const isSameSchoolType = exam?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (exam?.createdBy.id !== user.id) {
+      throw new ForbiddenException('Không có quyền ');
+    }
 
     const questionIds = updateExamDto.questionIds
     let questions = []
@@ -322,9 +339,24 @@ export class ExamService {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
 
+    const isOwner = example?.createdBy?.id === user.id;
+    const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (example?.createdBy.id !== user.id) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
     if (example?.createdBy?.id !== user.id) {
       console.log(user);
-      throw new ForbiddenException('Không có quyền xóa');
+      throw new ForbiddenException('Không có quyền');
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

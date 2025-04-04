@@ -10,7 +10,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from "typeorm";
 @Entity()
 export class Student extends BaseWithCreatedBy {
     @ManyToOne(() => Class, (classEntity) => classEntity.students, { nullable: true })
-    @JoinColumn({ name: "classid" })
+    @JoinColumn({ name: "classId" })
     class?: Class | null;
 
     @ManyToOne(() => School, { nullable: false })

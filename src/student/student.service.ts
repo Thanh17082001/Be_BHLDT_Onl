@@ -88,21 +88,11 @@ export class StudentService {
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search', 'typeScoreId', 'schoolYearId','subjectId'];
 
-    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-    if (!!query && Object.keys(query).length > 0) {
-      Object.keys(query).forEach((key) => {
-        if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`student.${key} = :${key}`, { [key]: query[key] });
-        }
-      });
-
-    }
-
 
     // 🎯 Phân quyền dữ liệu
     if (user.role === Role.TEACHER) {
       queryBuilder.andWhere(
-        '(users.id = :userId OR student.created_by = :userId OR student.created_by IS NULL) OR (school.id = :schoolId OR school.id IS NULL)',
+        '((student.created_by = :userId OR student.created_by IS NULL) OR (school.id = :schoolId OR school.id IS NULL))',
         {
           userId: user.id,
           schoolId: user.school.id
@@ -114,6 +104,19 @@ export class StudentService {
       });
     }
 
+    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
+    if (!!query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
+        if (query[key] != 0) {
+          if (key && !pagination.includes(key)) {
+            console.log(`student.${key} = : ${key}`, { [key]: +query[key] });
+            queryBuilder.andWhere(`student.${key} = :${key}`, { [key]: +query[key] });
+          }
+        }
+      });
+
+    }
+
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {
       queryBuilder.andWhere(`LOWER(unaccent("student".fullname)) ILIKE LOWER(unaccent(:search))`, {
@@ -121,11 +124,15 @@ export class StudentService {
       });
     }
 
+  
+
     // 🎯 Phân trang và sắp xếp
     queryBuilder.orderBy('student.createdAt', order).skip(skip).take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
+
+    console.log(entities.length);
 
     // tính điểm trung bình của từng học sinh
 
@@ -203,7 +210,7 @@ export class StudentService {
     const district = await this.repoDistrict.findOne({ where: { id: updateStudentDto.district_id } });
     const province = await this.repoProvince.findOne({ where: { id: updateStudentDto.province_id } });
     const ward = await this.repoWard.findOne({ where: { id: updateStudentDto.ward_id } });
-    const example: Student = await this.repo.findOne({ where: { id } });
+    const example: Student = await this.repo.findOne({ where: { id },relations:['class', 'school', 'ward', 'district', 'province'] });
 
     if (!example) {
       throw new NotFoundException(`Student with ID ${id} not found`);

@@ -52,8 +52,6 @@ export class UsersController {
         let arraySuccess = [];
         let arrayFail = [];
 
-        const item = users[0];
-
 
         let count = 0
         for (const row of users) {
@@ -65,10 +63,10 @@ export class UsersController {
             // Tạo hoặc tìm trường
             const schoolId = await this.schoolService.findOrCreateByName(schoolName, row['LOẠI TRƯỜNG']);
             // Tạo hoặc tìm các cấp học
-            const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels, schoolId);
+            const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels);
 
             // // Tạo hoặc tìm các môn học
-            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, schoolId, user);
+            const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, user.school.id, user);
             try {
                 const userDto: CreateUserDto = {
                     fullName,

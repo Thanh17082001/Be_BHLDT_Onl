@@ -10,14 +10,14 @@ import { RolesGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { SchoolType } from 'src/schools/entities/school.entity';
+import { Public } from 'src/auth/auth.decorator';
 
 @Controller('grade')
-  @UseGuards(RolesGuard)
+@UseGuards(RolesGuard)
 export class GradeController {
   constructor(private readonly gradeService: GradeService) { }
 
   @Post()
-  @Roles(Role.ADMIN)
   async create() {
     let createGradeDto: CreateGradeDto = new CreateGradeDto();
     let result = []

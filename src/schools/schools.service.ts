@@ -35,8 +35,8 @@ export class SchoolsService {
     if (await this.repo.findOne({where:{name, schoolType} })) {
       throw new HttpException('Trường đã tồn tại',409);
     }
-    const newUser = await this.repo.create({...createSchoolDto, grades, createdBy:user});
-    return await this.repo.save(newUser);
+    console.log({ ...createSchoolDto, grades, createdBy: user });
+    return await this.repo.save({ ...createSchoolDto, grades, createdBy: user ?? null });
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<School>, user:User): Promise<PageDto<School>> {
@@ -87,7 +87,7 @@ export class SchoolsService {
 
   async findByTypeSchoolIsAdmin(schoolType: string): Promise<School> {
 
-    const School = await this.repo.findOne({ where: { schoolType, isAdmin:true } });
+    let School = await this.repo.findOne({ where: { schoolType, isAdmin:true } });
     if (!School) {
       throw new HttpException('Not found', 404);
     }

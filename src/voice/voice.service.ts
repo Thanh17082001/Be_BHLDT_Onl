@@ -1,6 +1,7 @@
 import { CreateVoiceDto } from './dto/create-voice.dto';
 import { UpdateVoiceDto } from './dto/update-voice.dto';
-
+import * as path from 'path';
+import { existsSync, statSync, unlinkSync, promises as fs } from 'fs';
 import {
   ForbiddenException,
   HttpException,
@@ -124,16 +125,19 @@ export class VoiceService {
   }
 
 
-  async update(id: number, updateVoiceDto: UpdateVoiceDto) {
+  async update(id: number, updateVoiceDto: UpdateVoiceDto,user:User, isFile: boolean = true) {
     const { name, link } = updateVoiceDto;
     
-    const example: Voice = await this.repo.findOne({ where: { id } });
+    const example: Voice = await this.repo.findOne({ where: { id }, relations: ['createdBy', 'school', 'file', 'typeVoice'] });
+    if (isFile) {
+      const oldImagePath = path.join(__dirname, '..', '..', example.link);
+      if (existsSync(oldImagePath) && example.link) {
+        unlinkSync(oldImagePath);
+      }
 
-    if (!example) {
-      throw new NotFoundException(`Voice with ID ${id} not found`);
     }
-   
-    this.repo.merge(example, { name: updateVoiceDto.name, link });
+
+    this.repo.merge(example, { ...updateVoiceDto });
 
     await this.repo.update(id, example);
 
@@ -150,8 +154,7 @@ export class VoiceService {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
 
-    if (!example?.createdBy?.isAdmin) {
-      console.log(user);
+    if (example?.createdBy?.id !== user?.id) {
       throw new ForbiddenException('Không có quyền xóa');
     }
     await this.repo.delete(id);

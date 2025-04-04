@@ -37,8 +37,9 @@ export class ExamController {
 
   @Put(':id')
   @Roles(Role.TEACHER)
-  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto) {
-    return this.ExamService.update(+id, updateExamDto);
+  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto,  @Req() request: Request) {
+    const user = request['user'] ?? null;
+    return this.ExamService.update(+id, updateExamDto, user);
   }
 
   @Delete(':id')

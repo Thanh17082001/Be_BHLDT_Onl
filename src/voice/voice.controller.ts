@@ -59,8 +59,35 @@ export class VoiceController {
 
   @Put(':id')
   @Roles(Role.TEACHER)
-  update(@Param('id') id: string, @Body() updateVoiceDto: UpdateVoiceDto) {
-    return this.examplesService.update(+id, updateVoiceDto);
+  @ApiOperation({ summary: 'Upload file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'File upload',
+    type: UpdateVoiceDto,
+  })
+  @UseInterceptors(FileInterceptor('file', { storage: storage('voice', false), ...multerOptions }))
+  update(@UploadedFile() file: Express.Multer.File, @Param('id') id: string, @Body() updateVoiceDto: UpdateVoiceDto, @Req() request: Request) {
+    const user: User = request['user'] ?? null;
+    let link = updateVoiceDto.link;
+    let isFile = false;
+    let name: string = updateVoiceDto.name;
+
+    if (file) {
+      name = file.originalname;
+
+      link = `public/voice/${file.filename}`
+      isFile = true;
+    }
+    const data: CreateVoiceDto = {
+      fileId: +updateVoiceDto.fileId,
+      order: +updateVoiceDto.order,
+      isGeneral: (/true/).test(updateVoiceDto.isGeneral.toString()),
+      typeVoiceId: +updateVoiceDto.typeVoiceId,
+      link: link,
+      name: name || updateVoiceDto.name
+    }
+
+    return this.examplesService.update(+id, data, user, isFile);
   }
 
   @Delete(':id')

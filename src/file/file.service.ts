@@ -103,6 +103,7 @@ export class FileService {
       .leftJoinAndSelect('school.users', 'users')
       .leftJoinAndSelect('users.subjects', 'userSubjects') // Lấy danh sách giáo viên phụ trách môn học
       .leftJoinAndMapMany('file.voices', Voice, 'voices', 'voices.fileId = file.id')
+      .leftJoinAndMapOne('voices.typeVoice', 'voices.typeVoice', 'typeVoice');
       
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
@@ -195,7 +196,6 @@ export class FileService {
     if (!resource) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
-    console.log(resource);
 
     if ( !user.createdBy.isAdmin) {
       throw new ForbiddenException('Không có quyền xóa');

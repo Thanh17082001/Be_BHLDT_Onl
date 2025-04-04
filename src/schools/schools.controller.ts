@@ -8,6 +8,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { RolesGuard } from 'src/role/role.guard';
+import { Public } from 'src/auth/auth.decorator';
 
 @Controller('school')
 @UseGuards(RolesGuard)
@@ -16,7 +17,7 @@ export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) { }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Public()
   create(@Body() createSchoolDto: CreateSchoolDto, @Req() request: Request) {
     const user: User = request['user'] ?? null;
     return this.schoolsService.create(createSchoolDto, user);

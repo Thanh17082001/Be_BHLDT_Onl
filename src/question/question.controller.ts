@@ -53,7 +53,6 @@ export class QuestionController {
     console.log(data);
     let errors: Array<{ row: number, error: string }> = [];
     for (let i = 0; i < data.length; i++) {
-      console.log(i);
       const item = data[i];
       try {
         const level = await this.levelService.findByName(item[keyData[2]]);

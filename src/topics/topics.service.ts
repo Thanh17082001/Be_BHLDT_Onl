@@ -39,13 +39,13 @@ export class TopicsService {
       throw new NotFoundException('Môn học không tồn tại')
     }
 
-    const cls = this.repo.create({ name: createTopicDto.name, subject, school });
-    // if (!subject.topics) {
+    const cls = this.repo.create({ name: createTopicDto.name, subject, school, createdBy:user });
+    // if (!subject.topics) {,
     //   subject.topics = [];
     // }
     // subject.topics.push(cls)
 
-    const newTopic = await this.repo.save({ name: createTopicDto.name, subject, school, createBy: user });
+    const newTopic = await this.repo.save({ name: createTopicDto.name, subject, school, createdBy: user });
     // await this.repoSubject.save(subject);
     return newTopic;
   }
@@ -110,7 +110,7 @@ export class TopicsService {
     }
 
 
-    queryBuilder.orderBy(`topic.createdAt`, order)
+    queryBuilder.orderBy(`topic.subject`, 'ASC')
       .skip(skip)
       .take(take);
 
@@ -130,7 +130,7 @@ export class TopicsService {
     return new ItemDto(example);
   }
 
-  async update(id: number, updateTopicDto: UpdateTopicDto) {
+  async update(id: number, updateTopicDto: UpdateTopicDto, user:User) {
     const { name,subjectId } = updateTopicDto;
     const exampleExits: Topic = await this.repo.findOne({ where: { name, id: Not(id) } });
     if (exampleExits) {
@@ -141,6 +141,26 @@ export class TopicsService {
 
     if (!example) {
       throw new NotFoundException(`Topic with ID ${id} not found`);
+    }
+
+    const isOwner = example?.createdBy?.id === user.id;
+    const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (example?.createdBy.id !== user.id) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (example?.createdBy?.id !== user.id) {
+      console.log(user);
+      throw new ForbiddenException('Không có quyền');
     }
 
     const subject: Subject = await this.repoSubject.findOne({
@@ -156,13 +176,29 @@ export class TopicsService {
     return new ItemDto(example);;
   }
 
-  async remove(id: number) {
+  async remove(id: number, user:User) {
     const resource = await this.repo.findOne({ where: { id }, relations:[ 'createdBy','school'] });
     if (!resource) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
-    if (resource.school == null || resource?.createdBy?.isAdmin) {
-      throw new ForbiddenException('Không có quyền xóa');
+    const isOwner = resource?.createdBy?.id === user.id;
+    const isSameSchoolType = resource?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền ');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (resource?.createdBy.id !== user.id) {
+      throw new ForbiddenException('Không có quyền');
+    }
+
+    if (resource?.createdBy?.id !== user.id) {
+      console.log(user);
+      throw new ForbiddenException('Không có quyền');
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

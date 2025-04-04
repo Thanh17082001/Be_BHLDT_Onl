@@ -1,3 +1,4 @@
+import { schoolTypes } from 'src/common/constant/type-school-query';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 
@@ -30,7 +31,7 @@ export class GradeService {
     const queryBuilder = this.repo.createQueryBuilder('grade').leftJoinAndSelect('grade.school', 'school');;
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
-    if (!user?.isAdmin) {
+   
       // Định nghĩa khoảng lớp theo loại trường
       const gradeRanges: Record<SchoolType, { min: string; max: string }> = {
         [SchoolType['Tiểu học']]: { min: '1', max: '5' },
@@ -49,7 +50,7 @@ export class GradeService {
           max: range.max,
         });
       }
-    }
+    
 
     if (!!query && Object.keys(query).length > 0) {
       const arrayQuery: string[] = Object.keys(query);
@@ -91,7 +92,16 @@ export class GradeService {
     return new ItemDto(example);
   }
 
-  async findOrCreateByNames(names: string[], schoolId: number): Promise<number[]> {
+  async findByName(name: string): Promise<Grade> {
+
+    const example = await this.repo.findOne({ where: { name } });
+    if (!example) {
+      throw new HttpException('Not found', 404);
+    }
+    return example;
+  }
+
+  async findOrCreateByNames(names: string[]): Promise<number[]> {
     
     // Lấy danh sách các khối 
     const existingGrades = await this.repo.find({

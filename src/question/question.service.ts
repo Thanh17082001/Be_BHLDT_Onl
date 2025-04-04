@@ -46,7 +46,7 @@ export class QuestionService {
 
     createQuestionDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
-      where: { id: schoolId },
+      where: { id: createQuestionDto.schoolId },
     });
 
     const subject: Subject = await this.repoSubject.findOne({
@@ -142,20 +142,21 @@ export class QuestionService {
         const subjectIds = user.subjects?.map((subject) => subject.id) || [];
         if (subjectIds.length > 0) {
           queryBuilder.andWhere(
-            '(subject.id IN (:...subjectIds) OR question.created_by = :created_by)', // danh sách môn cộng câu hỏi chính ng đó tạo
+            '(subject.id IN (:...subjectIds) OR question.created_by = :created_by OR school.isAdmin = :isAdmin)', // danh sách môn cộng câu hỏi chính ng đó tạo
             {
               subjectIds,
               created_by: user.id,
-              // schoolTypesQuery,
+              isAdmin:true
             },
           );
         }
       } else if (user.role === Role.PRINCIPAL) {
         queryBuilder.andWhere(
-          '(school.id = :schoolId OR question.created_by = :created_by)',
+          '(school.id = :schoolId OR question.created_by = :created_by OR school.isAdmin = :isAdmin) ',
           {
             schoolId: user.school.id,
             created_by: user.id,
+            isAdmin: true
           },
         );
       }
@@ -236,6 +237,16 @@ export class QuestionService {
 
     if (!example) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
+    }
+    const isOwner = example?.createdBy?.id === user.id;
+    const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
+
+    if (!user.isAdmin && !isOwner) {
+      throw new ForbiddenException('Không có quyền xóa');
+    }
+
+    if (user.isAdmin && !isSameSchoolType) {
+      throw new ForbiddenException('Không có quyền xóa');
     }
 
     if (example?.createdBy.id !== user.id) {
