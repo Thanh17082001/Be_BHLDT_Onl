@@ -184,10 +184,6 @@ export class StudentService {
       }
       
     }
-      
-   
-
-
     return new PageDto(entities, new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }));
   }
 
@@ -197,7 +193,7 @@ export class StudentService {
 
     const example = await this.repo.findOne({ where: { id } });
     if (!example) {
-      throw new HttpException('Not found', 404);
+      throw new HttpException('Not found', 404)
     }
     return new ItemDto(example);
   }

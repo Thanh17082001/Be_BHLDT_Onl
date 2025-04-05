@@ -156,19 +156,21 @@ export class ExamService {
     const categorizedExams = entities.map(exam => {
       const typeQuestionMap = exam.questions.reduce((acc, question) => {
         const { typeQuestion } = question;
-        const { id: typeQuestionId } = typeQuestion;
-        if (!acc[typeQuestionId]) {
-          acc[typeQuestionId] = [];
+        const { id: typeQuestionId, name } = typeQuestion;
+        if (!acc[name]) {
+          acc[name] = [];
         }
-        acc[typeQuestionId].push(question);
+        acc[name].push(question);
         return acc;
       }, {});
+
+      console.log(typeQuestionMap);
 
 
 
       // Tạo hai mảng cho các loại câu hỏi dựa trên typeQuestionId
-      const MultipleChoiceScore = typeQuestionMap[2] || [];
-      const EssayScore = typeQuestionMap[1] || [];
+      const MultipleChoiceScore = typeQuestionMap['Trắc nghiệm'] || [];
+      const EssayScore = typeQuestionMap['Tự luận'] || [];
 
 
       return {
@@ -262,17 +264,18 @@ export class ExamService {
     //trộn đề 
     const typeQuestionMap = exam?.questions.reduce((acc, question) => {
       const { typeQuestion } = question;
-      const { id: typeQuestionId } = typeQuestion;
-      if (!acc[typeQuestionId]) {
-        acc[typeQuestionId] = [];
+      const { id: typeQuestionId, name } = typeQuestion;
+      if (!acc[name]) {
+        acc[name] = [];
       }
-      acc[typeQuestionId].push(question);
+      acc[name].push(question);
       return acc;
     }, {});
 
     // Tạo các mảng cho các loại câu hỏi dựa trên typeQuestionId
-    const MultipleChoiceScore = typeQuestionMap[2] || [];
-    const EssayScore = typeQuestionMap[1] || [];
+    // Tạo hai mảng cho các loại câu hỏi dựa trên typeQuestionId
+    const MultipleChoiceScore = typeQuestionMap['Trắc nghiệm'] || [];
+    const EssayScore = typeQuestionMap['Tự luận'] || [];
 
     // Tạo đối tượng kết quả
     const result = {

@@ -13,6 +13,7 @@ import { User } from 'src/users/entities/user.entity';
 import { School } from 'src/schools/entities/school.entity';
 import { Role } from 'src/role/role.enum';
 import { schoolTypes } from 'src/common/constant/type-school-query';
+import { create } from 'domain';
 
 @Injectable()
 export class TopicsService {
@@ -65,11 +66,12 @@ export class TopicsService {
 
         if (subjectIds.length > 0) {
           queryBuilder.andWhere(
-            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)) OR topic.created_by =:created_by',
             {
               subjectIds,
               isAdmin: true,
               schoolTypesQuery,
+              created_by: user.id,
             },
           );
         }
