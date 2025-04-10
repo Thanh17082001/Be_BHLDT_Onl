@@ -45,7 +45,7 @@ export class TypeScoreService {
     }
 
 
-    queryBuilder.orderBy(`typevoice.createdAt`, order)
+    queryBuilder.orderBy(`typevoice.order`, 'ASC')
       .skip(skip)
       .take(take);
 

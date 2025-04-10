@@ -71,7 +71,7 @@ export class SubjectsService {
       .leftJoinAndSelect('subject.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
 
     const { page, take, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search', 'topic'];
 
     //phân quyền dữ liệu
     if (user) {

@@ -8,6 +8,7 @@ import { Role } from 'src/role/role.enum';
 import { User } from 'src/users/entities/user.entity';
 import { RolesGuard } from 'src/role/role.guard';
 import { Score } from './entities/score.entity';
+import { StatisticalDto } from './dto/statistical-dto';
 
 @Controller('score')
 @UseGuards(RolesGuard)
@@ -27,6 +28,13 @@ export class ScoreController {
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Score>, @Req() request: Request) {
     const user = request['user'] ?? null;
     return this.scoreService.findAll(pageOptionDto, query, user);
+  }
+
+  @Get('statistical')
+  @Roles(Role.TEACHER)
+
+  statistical(@Query() statisticalDto: StatisticalDto) {
+    return this.scoreService.statistical(statisticalDto);
   }
 
   @Get(':id')

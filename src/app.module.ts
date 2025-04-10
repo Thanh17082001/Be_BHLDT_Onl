@@ -34,6 +34,9 @@ import { AnswerModule } from './answer/answer.module';
 import { QuestionModule } from './question/question.module';
 import { ExamModule } from './exam/exam.module';
 import { VoiceModule } from './voice/voice.module';
+import { LessonPlanModule } from './lesson-plan/lesson-plan.module';
+import { GameQuestionModule } from './game-question/game-question.module';
+import { GameModule } from './game/game.module';
 
 @Module({
   imports: [
@@ -96,7 +99,10 @@ import { VoiceModule } from './voice/voice.module';
     AnswerModule,
     QuestionModule,
     ExamModule,
-    VoiceModule
+    VoiceModule,
+    LessonPlanModule,
+    GameQuestionModule,
+    GameModule
   ],
   controllers: [],
   providers: [

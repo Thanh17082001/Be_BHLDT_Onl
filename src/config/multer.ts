@@ -17,9 +17,9 @@ export const storage = (folder: string, isSplit: boolean = false) =>
                     uploadPath = path.join(uploadPath, 'pdf');
                 } else if (file.mimetype == 'video/mp4') {
                     uploadPath = path.join(uploadPath, 'video');
-                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.originalname.endsWith('.pptx')) {
                     uploadPath = path.join(uploadPath, 'ptt');
-                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
                     uploadPath = path.join(uploadPath, 'word');
                 } else {
                     uploadPath = path.join(uploadPath, 'image');

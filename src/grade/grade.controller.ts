@@ -18,6 +18,8 @@ export class GradeController {
   constructor(private readonly gradeService: GradeService) { }
 
   @Post()
+    @Roles(Role.ADMIN)
+  @Public()
   async create() {
     let createGradeDto: CreateGradeDto = new CreateGradeDto();
     let result = []

@@ -21,7 +21,6 @@ export class StaticFilesMiddleware {
     use(req: Request, res: Response, next: NextFunction) {
         const origin = req.headers.origin ?? req.headers.referer; // Lấy Origin hoặc Referer
         
-        console.log(StaticFilesMiddleware.domainNames,'hsahashdsad');
 
 
         // Chỉ cho phép truy cập từ FE của bạn

@@ -7,4 +7,6 @@ export class TypeScore extends AbstractEntity {
     name: string;
     @Column("decimal", { precision: 5, scale: 2 })
     coefficient: number
+    @Column({nullable: true})
+    order: number
 }

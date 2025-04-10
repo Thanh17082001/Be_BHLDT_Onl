@@ -26,6 +26,17 @@ async function bootstrap() {
 
   const domainsService = app.get(DoaminsService);
 
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  });
+
   // Tạo middleware và inject DomainsService vào
 
   const staticFile = new StaticFilesMiddleware(domainsService)
@@ -62,13 +73,10 @@ async function bootstrap() {
   //middleware
 
   // Cấu hình CORS
-  app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  });
+  const allowedDomains = await domainsService.findAll();
+  const allowedOrigins = allowedDomains.map((d) => d.name);
+
+  
 
     //custom transform
   const reflector = app.get(Reflector);
