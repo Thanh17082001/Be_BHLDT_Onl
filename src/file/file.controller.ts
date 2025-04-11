@@ -27,7 +27,7 @@ export class FileController {
     description: 'File upload',
     type: CreateFileDto,
   })
-  @UseInterceptors(FileInterceptor('leson-pland', { storage: storage('', true), ...multerOptions }))
+  @UseInterceptors(FileInterceptor('file', { storage: storage('', true), ...multerOptions }))
   async create(@UploadedFile() file: Express.Multer.File, @Body() createFileDto: CreateFileDto, @Req() request: Request) {
     const user = request['user'] ?? null;
 

@@ -3,7 +3,7 @@ import { UpdateClassDto } from './dto/update-class.dto';
 
 import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -14,6 +14,7 @@ import { Role } from 'src/role/role.enum';
 import { School } from 'src/schools/entities/school.entity';
 import { Class } from './entities/class.entity';
 import { SchoolYear } from 'src/school-year/entities/school-year.entity';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class ClassService {
@@ -46,17 +47,18 @@ export class ClassService {
     query: Partial<Class>,
     user: User
   ): Promise<PageDto<Class>> {
-    const queryBuilder = this.repo.createQueryBuilder('class')
+    const queryBuilder = this.repo
+      .createQueryBuilder('class')
       .leftJoinAndSelect('class.grade', 'grade')
-      .leftJoinAndSelect('class.school', 'school') // Lấy thông tin trường
-      .leftJoinAndSelect('class.schoolYear', 'schoolYear') // Lấy thông tin người tạo
-      .leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
+      .leftJoinAndSelect('class.school', 'school')
+      .leftJoinAndSelect('class.schoolYear', 'schoolYear')
+      .leftJoinAndSelect('school.users', 'users');
 
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-    if (!!query && Object.keys(query).length > 0) {
+    // 🎯 Lọc theo các điều kiện cụ thể (trừ tham số phân trang)
+    if (query && Object.keys(query).length > 0) {
       Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
           queryBuilder.andWhere(`class.${key} = :${key}`, { [key]: query[key] });
@@ -64,36 +66,66 @@ export class ClassService {
       });
     }
 
-    // 🎯 Phân quyền dữ liệu
+    // 🔐 Phân quyền dữ liệu theo vai trò
     if (user.role === Role.TEACHER) {
       queryBuilder.andWhere(
-        '(users.id = :userId OR class.created_by = :userId OR class.created_by IS NULL) AND (school.id = :schoolId OR school.id IS NULL)',
-        {
-          userId: user.id,
-          schoolId: user.school.id
-        }
+        new Brackets((qb) => {
+          qb.where('users.id = :userId')
+            .orWhere('class.created_by = :userId')
+            .orWhere('class.created_by IS NULL');
+        }),
       );
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('school.id = :schoolId')
+            .orWhere('school.id IS NULL');
+        }),
+      );
+      queryBuilder.setParameters({
+        userId: user.id,
+        schoolId: user.school.id,
+      });
     } else if (user.role === Role.PRINCIPAL) {
-      queryBuilder.andWhere('(school.id = :schoolId OR school.id IS NULL)', {
-        schoolId: user.school.id
-      });
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('school.id = :schoolId')
+            .orWhere('school.id IS NULL');
+        }),
+      );
+      queryBuilder.setParameter('schoolId', user.school.id);
+    } else if (user.role === Role.ADMIN) {
+      const schoolTypesQuery = schoolTypes(user); // Hàm trả về danh sách schoolType mà admin được quản lý
+      if (schoolTypesQuery.length > 0) {
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('school.schoolType IN (:...schoolTypes)', {
+              schoolTypes: schoolTypesQuery,
+            });
+          }),
+        );
+      }
     }
 
-    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
+    // 🔎 Tìm kiếm theo tên lớp học (không phân biệt dấu và chữ hoa/thường)
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent("class".name)) ILIKE LOWER(unaccent(:search))`, {
-        search: `%${search}%`,
-      });
+      queryBuilder.andWhere(
+        `LOWER(unaccent(class.name)) ILIKE LOWER(unaccent(:search))`,
+        { search: `%${search}%` }
+      );
     }
 
-    // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('class.createdAt', order).skip(skip).take(take);
+    // 📄 Phân trang và sắp xếp
+    queryBuilder
+      .orderBy('class.createdAt', order)
+      .skip(skip)
+      .take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
 
     return new PageDto(entities, new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }));
   }
+
 
 
 

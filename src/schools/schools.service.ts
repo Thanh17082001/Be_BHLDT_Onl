@@ -3,7 +3,7 @@ import { CreateSchoolDto } from './dto/create-school.dto';
 import { UpdateSchoolDto } from './dto/update-school.dto';
 import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -11,6 +11,7 @@ import { School, SchoolType } from './entities/school.entity';
 import { Grade } from 'src/grade/entities/grade.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Role } from 'src/role/role.enum';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class SchoolsService {
@@ -39,33 +40,54 @@ export class SchoolsService {
     return await this.repo.save({ ...createSchoolDto, grades, createdBy: user ?? null });
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<School>, user:User): Promise<PageDto<School>> {
-    const queryBuilder = this.repo.createQueryBuilder('school').leftJoinAndSelect('school.grades', 'grade').leftJoinAndSelect('school.users', 'users')
+  async findAll(pageOptions: PageOptionsDto, query: Partial<School>, user: User): Promise<PageDto<School>> {
+    const queryBuilder = this.repo
+      .createQueryBuilder('school')
+      .leftJoinAndSelect('school.grades', 'grade')
+      .leftJoinAndSelect('school.users', 'users');
+
     const { page, take, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
-    if (!!query && Object.keys(query).length > 0) {
-      const arrayQuery: string[] = Object.keys(query);
-      arrayQuery.forEach((key) => {
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+
+    // 🎯 Lọc theo điều kiện từ query (bỏ qua các tham số phân trang)
+    if (query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`school.${key} = :${key}`, { [key]: query[key] });
+          queryBuilder.andWhere(`school.${key} = :${key}`, {
+            [key]: query[key],
+          });
         }
       });
     }
 
-    // 🟢 Nếu không phải admin, chỉ lấy trường của user
+    // 🔐 Phân quyền theo role
     if (user.role !== Role.ADMIN) {
       queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
+    } else {
+      // Nếu là admin, lọc theo loại trường nếu có
+      const schoolTypesQuery = schoolTypes(user); // function này bạn đã có
+      if (schoolTypesQuery.length > 0) {
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('school.schoolType IN (:...schoolTypes)', { schoolTypes: schoolTypesQuery });
+          }),
+        );
+      }
     }
 
-    //search document
+    // 🔎 Tìm kiếm theo tên trường (bỏ dấu và không phân biệt hoa thường)
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(School.name)) ILIKE LOWER(unaccent(:search))`, {
-        search: `%${search}%`,
-      });
+      queryBuilder.andWhere(
+        `LOWER(unaccent(school.name)) ILIKE LOWER(unaccent(:search))`,
+        {
+          search: `%${search}%`,
+        },
+      );
     }
 
-
-    queryBuilder.orderBy(`school.createdAt`, order)
+    // 📄 Sắp xếp, phân trang
+    queryBuilder
+      .orderBy('school.createdAt', order)
       .skip(skip)
       .take(take);
 
@@ -75,6 +97,7 @@ export class SchoolsService {
 
     return new PageDto(entities, pageMetaDto);
   }
+
 
   async findOne(id: number): Promise<ItemDto<School>> {
 

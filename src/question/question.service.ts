@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -131,48 +131,39 @@ export class QuestionService {
       .leftJoinAndSelect('school.users', 'users')
     // Lấy danh sách giáo viên phụ trách môn học
 
+
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-   
-    //phân quyền dữ liệu
+    // 🎯 Phân quyền dữ liệu
     if (user) {
       const schoolTypesQuery = schoolTypes(user);
-      if (user.role === Role.TEACHER) {
-        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
-        if (subjectIds.length > 0) {
-          queryBuilder.andWhere(
-            '(subject.id IN (:...subjectIds) OR question.created_by = :created_by OR school.isAdmin = :isAdmin)', // danh sách môn cộng câu hỏi chính ng đó tạo
-            {
-              subjectIds,
-              created_by: user.id,
-              isAdmin:true
-            },
-          );
-        }
-      } else if (user.role === Role.PRINCIPAL) {
-        queryBuilder.andWhere(
-          '(school.id = :schoolId OR question.created_by = :created_by OR school.isAdmin = :isAdmin) ',
-          {
-            schoolId: user.school.id,
-            created_by: user.id,
-            isAdmin: true
-          },
-        );
-      }
-      // admin
-      else {
-        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
-          schoolTypesQuery,
-        });
-      }
+
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          if (user.role === Role.TEACHER) {
+            const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+            if (subjectIds.length > 0) {
+              qb.where('subject.id IN (:...subjectIds)', { subjectIds })
+                .orWhere('question.created_by = :created_by', { created_by: user.id })
+                .orWhere('school.isAdmin = :isAdmin', { isAdmin: true });
+            }
+          } else if (user.role === Role.PRINCIPAL) {
+            qb.where('school.id = :schoolId', { schoolId: user.school.id })
+              .orWhere('question.created_by = :created_by', { created_by: user.id })
+              .orWhere('school.isAdmin = :isAdmin', { isAdmin: true });
+          } else {
+            // Admin
+            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }
+        }),
+      );
     }
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-    if (!!query && Object.keys(query).length > 0) {
+    if (query && Object.keys(query).length > 0) {
       Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
-          console.log(key);
           queryBuilder.andWhere(`question.${key} = :${key}`, {
             [key]: query[key],
           });
@@ -180,8 +171,7 @@ export class QuestionService {
       });
     }
 
-
-    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
+    // 🎯 Tìm kiếm theo nội dung câu hỏi (bỏ dấu, không phân biệt hoa thường)
     if (search) {
       queryBuilder.andWhere(
         `LOWER(unaccent("question".content)) ILIKE LOWER(unaccent(:search))`,
@@ -191,7 +181,6 @@ export class QuestionService {
       );
     }
 
-    
     // 🎯 Phân trang và sắp xếp
     queryBuilder.orderBy('question.createdAt', order).skip(skip).take(take);
 

@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -73,40 +73,44 @@ export class SubjectsService {
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search', 'topic'];
 
-    //phân quyền dữ liệu
+    // 🎯 Phân quyền dữ liệu
     if (user) {
       const schoolTypesQuery = schoolTypes(user);
-      if (user.role === Role.TEACHER) {
-        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
-        if (subjectIds.length > 0) {
-          queryBuilder.andWhere(
-            queryTeacher('subject'),
-            {
-              subjectIds,
-              created_by: user.id,
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          if (user.role === Role.TEACHER) {
+            const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+
+            if (subjectIds.length > 0) {
+              qb.where(
+                new Brackets((q) =>
+                  q
+                    .where('subject.id IN (:...subjectIds)', { subjectIds })
+                    .orWhere('subject.created_by = :created_by', { created_by: user.id }),
+                ),
+              );
             }
-           
-          );
-        }
-      } else if (user.role === Role.PRINCIPAL) {
-        queryBuilder.andWhere(
-          roleQueryPrincipal,
-          {
-            schoolId: user.school.id,
-            isAdmin: true, // Thêm điều kiện isAdmin = true
-            schoolTypesQuery,
-          },
-        );
-      }
-        // admin
-      else {
-        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
-          schoolTypesQuery,
-        });
-      }
+          } else if (user.role === Role.PRINCIPAL) {
+            qb.where(
+              new Brackets((q) =>
+                q
+                  .where('school.id = :schoolId', { schoolId: user.school.id })
+                  .orWhere(
+                    'school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)',
+                    {
+                      isAdmin: true,
+                      schoolTypesQuery,
+                    },
+                  ),
+            ),
+            );
+          } else {
+            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }
+        }),
+      );
     }
-    
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
@@ -119,7 +123,6 @@ export class SubjectsService {
       });
     }
 
-    
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {
       queryBuilder.andWhere(
@@ -129,6 +132,7 @@ export class SubjectsService {
         },
       );
     }
+
 
     // 🎯 Phân trang và sắp xếp
     queryBuilder.orderBy('subject.name', 'ASC').skip(skip).take(take);

@@ -13,7 +13,7 @@ import * as path from 'path';
 import { existsSync, statSync, unlinkSync, promises as fs } from 'fs';
 import { File } from './entities/file.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { CreateImageDto } from 'src/image/dto/create-image.dto';
 import { ImageService } from 'src/image/image.service';
 import { Image } from 'src/image/entities/image.entity';
@@ -108,55 +108,56 @@ export class FileService {
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-    //phân quyền dữ liệu
+    // 🎯 Phân quyền dữ liệu
     if (user) {
       const schoolTypesQuery = schoolTypes(user);
-      if (user.role === Role.TEACHER) {
-        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
-        if (subjectIds.length > 0) {
-          queryBuilder.andWhere(
-            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
-            {
-              subjectIds,
-              isAdmin: true,
-              schoolTypesQuery,
-            },
-          );
-        }
-      } else if (user.role === Role.PRINCIPAL) {
-        queryBuilder.andWhere(
-          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
-          {
-            schoolId: user.school.id,
-            isAdmin: true, // Thêm điều kiện isAdmin = true
-            schoolTypesQuery,
-          },
-        );
-      }
-      // admin
-      else {
-        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
-          schoolTypesQuery,
-        });
-      }
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          if (user.role === Role.TEACHER) {
+            const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+            if (subjectIds.length > 0) {
+              qb.where('subject.id IN (:...subjectIds)', { subjectIds })
+                .orWhere(
+                  '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+                  {
+                    isAdmin: true,
+                    schoolTypesQuery,
+                  },
+                );
+            }
+          } else if (user.role === Role.PRINCIPAL) {
+            qb.where('school.id = :schoolId', { schoolId: user.school.id })
+              .orWhere(
+                '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+                {
+                  isAdmin: true,
+                  schoolTypesQuery,
+                },
+              );
+          } else {
+            // Admin
+            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }
+        }),
+      );
     }
 
-    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-    if (!!query && Object.keys(query).length > 0) {
-      Object.keys(query).forEach((key) => {
-        if (key !== undefined && key !== null && !pagination.includes(key)) {
-          queryBuilder.andWhere(`file.${key} = :${key}`, { [key]: query[key] });
+    // 🎯 Lọc theo các trường từ query params (bỏ qua các tham số phân trang)
+    if (query && typeof query === 'object') {
+      Object.entries(query).forEach(([key, value]) => {
+        if (key && !pagination.includes(key)) {
+          queryBuilder.andWhere(`file.${key} = :${key}`, {
+            [key]: isNaN(Number(value)) ? value : +value,
+          });
         }
       });
     }
 
-   
-
-    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
+    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu và không phân biệt hoa thường)
     if (search) {
       queryBuilder.andWhere(
-        `LOWER(unaccent("subject".name)) ILIKE LOWER(unaccent(:search))`,
+        `LOWER(unaccent("file".name)) ILIKE LOWER(unaccent(:search))`,
         {
           search: `%${search}%`,
         },

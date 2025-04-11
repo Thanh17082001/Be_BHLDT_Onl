@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -10,6 +10,7 @@ import { UpdateSchoolYearDto } from './dto/update-school-year.dto';
 import { User } from 'src/users/entities/user.entity';
 import { School } from 'src/schools/entities/school.entity';
 import { Role } from 'src/role/role.enum';
+import { schoolTypes } from 'src/common/constant/type-school-query';
 
 @Injectable()
 export class SchoolYearService {
@@ -34,48 +35,73 @@ export class SchoolYearService {
     return await this.repo.save(newUser);
   }
 
-  async findAll(pageOptions: PageOptionsDto, query: Partial<SchoolYear>, user:User): Promise<PageDto<SchoolYear>> {
-    const queryBuilder = this.repo.createQueryBuilder('school-year').leftJoinAndSelect('school-year.school', 'school').leftJoinAndSelect('school-year.createdBy', 'users');;
-    const { page, take, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
-    if (!!query && Object.keys(query).length > 0) {
-      const arrayQuery: string[] = Object.keys(query);
-      arrayQuery.forEach((key) => {
-        if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`school-year.${key} = :${key}`, { [key]: query[key] });
-        }
-      });
-    }
+  async findAll(
+    pageOptions: PageOptionsDto,
+    query: Partial<SchoolYear>,
+    user: User
+  ): Promise<PageDto<SchoolYear>> {
+    const queryBuilder = this.repo
+      .createQueryBuilder('schoolYear')
+      .leftJoinAndSelect('schoolYear.school', 'school')
+      .leftJoinAndSelect('schoolYear.createdBy', 'users');
 
-    // 🎯 Phân quyền dữ liệu
-        if (user.role === Role.TEACHER) {
-          console.log('đaa');
-          // Giáo viên lấy các môn thuộc trường của họ + các môn họ phụ trách
-          queryBuilder.andWhere('(users.id = :userId)', {
-            userId: user.id
+    const { take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+
+    // 🎯 Lọc theo điều kiện query
+    if (query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
+        if (!pagination.includes(key)) {
+          queryBuilder.andWhere(`schoolYear.${key} = :${key}`, {
+            [key]: query[key],
           });
-        } else if (user.role === Role.PRINCIPAL) {
-          // Hiệu trưởng lấy các môn của trường họ quản lý
-          queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
         }
-
-    //search document
-    if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(school-year.name)) ILIKE LOWER(unaccent(:search))`, {
-        search: `%${search}%`,
       });
     }
 
+    // 🔐 Phân quyền dữ liệu
+    if (user.role === Role.TEACHER) {
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('users.id = :userId');
+        })
+      );
+      queryBuilder.setParameter('userId', user.id);
+    } else if (user.role === Role.PRINCIPAL) {
+      queryBuilder.andWhere('school.id = :schoolId', {
+        schoolId: user.school.id,
+      });
+    } else if (user.role === Role.ADMIN) {
+      const schoolTypesQuery = schoolTypes(user); // ⬅️ Giả sử bạn có hàm này trả về danh sách các loại trường mà admin được xem
+      if (schoolTypesQuery.length > 0) {
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            qb.where('school.schoolType IN (:...schoolTypes)', {
+              schoolTypes: schoolTypesQuery,
+            });
+          })
+        );
+      }
+    }
 
-    queryBuilder.orderBy(`school-year.createdAt`, order)
+    // 🔍 Tìm kiếm theo tên năm học
+    if (search) {
+      queryBuilder.andWhere(
+        `LOWER(unaccent(schoolYear.name)) ILIKE LOWER(unaccent(:search))`,
+        { search: `%${search}%` }
+      );
+    }
+
+    // 📄 Phân trang và sắp xếp
+    queryBuilder
+      .orderBy('schoolYear.createdAt', order)
       .skip(skip)
       .take(take);
 
     const itemCount = await queryBuilder.getCount();
-    const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
     const { entities } = await queryBuilder.getRawAndEntities();
 
-    return new PageDto(entities, pageMetaDto);
+    return new PageDto(entities, new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }));
   }
 
   async findOne(id: number): Promise<ItemDto<SchoolYear>> {
