@@ -105,9 +105,10 @@ export class SubjectsService {
                   ),
             ),
             );
-          } else {
+          } else if(user.role === Role.ADMIN) {
             qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
           }
+          
         }),
       );
     }

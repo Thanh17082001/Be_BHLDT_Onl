@@ -1,12 +1,12 @@
 import * as ffmpeg from 'fluent-ffmpeg';
 import * as path from 'path';
 import { promises as fs } from 'fs';
-import { randomNameFile } from './random-name';
+import { randomNameFile, randomNameFileVideo } from './random-name';
 import { cutPathThumbnailVideo } from './cut-part';
 
 export const generateImageFromVideo = async (videoPathFile: string, time: string = '00:00:14'): Promise<{ path: string; sizeMB: number }> => {
     const videoPath = path.join(__dirname, '..', '..', 'public', videoPathFile);
-    const nameOutputImage = randomNameFile('thumbnail-image.png');
+    const nameOutputImage = randomNameFileVideo('thumbnail-image.png');
     const outputImagePath = path.join(__dirname, '..', '..', 'public', 'video-thumbnail', nameOutputImage);
 
     ffmpeg.setFfmpegPath(require('@ffmpeg-installer/ffmpeg').path);

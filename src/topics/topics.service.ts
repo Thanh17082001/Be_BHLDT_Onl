@@ -83,8 +83,7 @@ export class TopicsService {
                     .andWhere('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
                 }),
               );
-          } else {
-            // ADMIN
+          } else if (user.role === Role.ADMIN) {
             qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
           }
         }),

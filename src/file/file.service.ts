@@ -140,8 +140,7 @@ export class FileService {
                   schoolTypesQuery,
                 },
               );
-          } else {
-            // Admin
+          } else if (user.role === Role.ADMIN) {
             qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
           }
         }),

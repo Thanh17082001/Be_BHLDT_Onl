@@ -31,7 +31,7 @@ export class ClassService {
     const school = await this.repoSchool.findOne({ where: { id: createClassDto.schoolId } });
     const schoolYear = await this.repoSchoolYear.findOne({ where: { id: createClassDto.schoolYearId } });
     const { name, gradeId } = createClassDto;
-    if (await this.repo.findOne({ where: { name, school: { id: createClassDto.schoolId } } })) {
+    if (await this.repo.findOne({ where: { name, school: { id: createClassDto.schoolId }, schoolYear: { id: createClassDto.schoolYearId } } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
     const grade: Grade = await this.repoGrade.findOne({ where: { id: gradeId } });
@@ -70,15 +70,12 @@ export class ClassService {
     if (user.role === Role.TEACHER) {
       queryBuilder.andWhere(
         new Brackets((qb) => {
-          qb.where('users.id = :userId')
-            .orWhere('class.created_by = :userId')
-            .orWhere('class.created_by IS NULL');
+          qb.where('class.created_by = :userId')
         }),
       );
       queryBuilder.andWhere(
         new Brackets((qb) => {
-          qb.where('school.id = :schoolId')
-            .orWhere('school.id IS NULL');
+          qb.where('school.id = :schoolId');
         }),
       );
       queryBuilder.setParameters({
@@ -89,7 +86,6 @@ export class ClassService {
       queryBuilder.andWhere(
         new Brackets((qb) => {
           qb.where('school.id = :schoolId')
-            .orWhere('school.id IS NULL');
         }),
       );
       queryBuilder.setParameter('schoolId', user.school.id);

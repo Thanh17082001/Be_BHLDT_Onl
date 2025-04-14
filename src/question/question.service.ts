@@ -152,8 +152,7 @@ export class QuestionService {
             qb.where('school.id = :schoolId', { schoolId: user.school.id })
               .orWhere('question.created_by = :created_by', { created_by: user.id })
               .orWhere('school.isAdmin = :isAdmin', { isAdmin: true });
-          } else {
-            // Admin
+          } else if (user.role === Role.ADMIN) {
             qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
           }
         }),

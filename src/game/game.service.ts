@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { UpdateGameDto } from './dto/update-game.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Game } from './entities/game.entity';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -14,6 +14,7 @@ import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { School } from 'src/schools/entities/school.entity';
 import { User } from 'src/users/entities/user.entity';
 import { schoolTypes } from 'src/common/constant/type-school-query';
+import { Role } from 'src/role/role.enum';
 
 @Injectable()
 export class GameService {
@@ -115,14 +116,40 @@ export class GameService {
       });
     }
 
-    queryBuilder.andWhere(
-      '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
-      {
-        schoolId: user.school.id,
-        isAdmin: true, // Thêm điều kiện isAdmin = true
-        schoolTypesQuery,
-      },
-    );
+    if (user.role === Role.TEACHER) {
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('game.created_by = :userId')
+            }),
+          );
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('school.id = :schoolId');
+            }),
+          );
+          queryBuilder.setParameters({
+            userId: user.id,
+            schoolId: user.school.id,
+          });
+        } else if (user.role === Role.PRINCIPAL) {
+          queryBuilder.andWhere(
+            new Brackets((qb) => {
+              qb.where('school.id = :schoolId')
+            }),
+          );
+          queryBuilder.setParameter('schoolId', user.school.id);
+        } else if (user.role === Role.ADMIN) {
+          const schoolTypesQuery = schoolTypes(user); // Hàm trả về danh sách schoolType mà admin được quản lý
+          if (schoolTypesQuery.length > 0) {
+            queryBuilder.andWhere(
+              new Brackets((qb) => {
+                qb.where('school.schoolType IN (:...schoolTypes)', {
+                  schoolTypes: schoolTypesQuery,
+                });
+              }),
+            );
+          }
+        }
 
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {

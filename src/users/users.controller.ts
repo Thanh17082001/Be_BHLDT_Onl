@@ -91,7 +91,7 @@ export class UsersController {
         }
         return {
             success: arraySuccess,
-            fail: arrayFail,
+            errors: arrayFail,
         }
     }
 
