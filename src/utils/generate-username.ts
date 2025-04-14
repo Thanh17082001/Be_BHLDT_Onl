@@ -1,3 +1,5 @@
+import slugify from 'slugify';
+
 export function generateUsername(schoolType: string, schoolName: string, fullName: string): string {
     // Rút gọn loại trường
     const schoolTypeShort = schoolType
@@ -54,3 +56,13 @@ export function removeVietnameseTones(str: string): string {
     str = str.replace(/!|@|%|\^|\*|\(|\)|\+|\=|\<|\>|\?|\/|,|\.|\:|\;|\'|\"|\&|\#|\[|\]|~|\$|_|`|-|{|}|\||\\/g, ' ');
     return str;
 }
+
+
+export const safeName = (name: string) => {
+    return slugify(name, {
+        lower: true,
+        strict: true, // Loại bỏ mọi ký tự không phải a-zA-Z0-9 và -
+        remove: /[*+~.()'"!:@\s]/g,
+    });
+}
+

@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
@@ -29,8 +30,11 @@ import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { subscribe } from 'diagnostics_channel';
 import { schoolTypes } from 'src/common/constant/type-school-query';
 import { Voice } from 'src/voice/entities/voice.entity';
+import { RolesGuard } from 'src/role/role.guard';
+import { Roles } from 'src/role/role.decorator';
 
 @Injectable()
+
 export class FileService {
   constructor(
     @InjectRepository(File) private repo: Repository<File>,
@@ -116,16 +120,17 @@ export class FileService {
         new Brackets((qb) => {
           if (user.role === Role.TEACHER) {
             const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+
             if (subjectIds.length > 0) {
-              qb.where('subject.id IN (:...subjectIds)', { subjectIds })
-                .orWhere(
-                  '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
-                  {
-                    isAdmin: true,
-                    schoolTypesQuery,
-                  },
-                );
+              qb.where(
+                new Brackets((q) =>
+                  q
+                    .where('subject.id IN (:...subjectIds)', { subjectIds })
+                    .orWhere('file.created_by = :created_by', { created_by: user.id }),
+                ),
+              );
             }
+          
           } else if (user.role === Role.PRINCIPAL) {
             qb.where('school.id = :schoolId', { schoolId: user.school.id })
               .orWhere(
@@ -198,9 +203,12 @@ export class FileService {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
 
-    if ( !user.createdBy.isAdmin) {
-      throw new ForbiddenException('Không có quyền xóa');
+    if (!user.isAdmin) {
+      if(resource?.createdBy?.id !== user.id) {
+        throw new ForbiddenException('Không có quyền xóa');
+      }
     }
+
 
     // Nếu có file con, xóa tất cả đệ quy
     if (resource.children && resource.children.length > 0) {
@@ -272,7 +280,6 @@ export class FileService {
 
       return outputFiles;
     } catch (error) {
-      console.error('Error converting PDF to images:', error);
       throw new Error(error);
     }
   }

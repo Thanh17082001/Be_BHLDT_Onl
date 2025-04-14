@@ -3,7 +3,7 @@ import { UpdateTopicDto } from './dto/update-topic.dto';
 
 import { BadRequestException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -56,60 +56,58 @@ export class TopicsService {
     const queryBuilder = this.repo.createQueryBuilder('topic').leftJoinAndSelect('topic.subject', 'subject')
       .leftJoinAndSelect('topic.school', 'school').leftJoinAndSelect('topic.createdBy', 'createdBy').leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
     const { page, take, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-    //phân quyền dữ liệu
+    // 🔐 Phân quyền dữ liệu
     if (user) {
       const schoolTypesQuery = schoolTypes(user);
-      if (user.role === Role.TEACHER) {
-        const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+      const subjectIds = user.subjects?.map((subject) => subject.id) || [];
 
-        if (subjectIds.length > 0) {
-          queryBuilder.andWhere(
-            'subject.id IN (:...subjectIds) OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)) OR topic.created_by =:created_by',
-            {
-              subjectIds,
-              isAdmin: true,
-              schoolTypesQuery,
-              created_by: user.id,
-            },
-          );
-        }
-      } else if (user.role === Role.PRINCIPAL) {
-        queryBuilder.andWhere(
-          '(school.id = :schoolId OR (school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery)))',
-          {
-            schoolId: user.school.id,
-            isAdmin: true, // Thêm điều kiện isAdmin = true
-            schoolTypesQuery,
-          },
-        );
-      }
-      // admin
-      else {
-        queryBuilder.andWhere(`school.schoolType IN (:...schoolTypesQuery)`, {
-          schoolTypesQuery,
-        });
-      }
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          if (user.role === Role.TEACHER) {
+            if (subjectIds.length > 0) {
+              qb.where(
+                new Brackets((q) =>
+                  q
+                    .where('subject.id IN (:...subjectIds)', { subjectIds })
+                    .orWhere('topic.created_by = :created_by', { created_by: user.id }),
+                ),
+              );
+            }
+          } else if (user.role === Role.PRINCIPAL) {
+            qb.where('school.id = :schoolId', { schoolId: user.school.id })
+              .orWhere(
+                new Brackets((qb2) => {
+                  qb2.where('school.isAdmin = :isAdmin', { isAdmin: true })
+                    .andWhere('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+                }),
+              );
+          } else {
+            // ADMIN
+            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }
+        }),
+      );
     }
 
-
+    // 📦 Lọc theo các trường khác
     if (!!query && Object.keys(query).length > 0) {
-      const arrayQuery: string[] = Object.keys(query);
-      arrayQuery.forEach((key) => {
+      Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
           queryBuilder.andWhere(`topic.${key} = :${key}`, { [key]: query[key] });
         }
       });
     }
 
-    
-    //search document
+    // 🔍 Tìm kiếm theo tên topic
     if (search) {
-      queryBuilder.andWhere(`LOWER(unaccent(topic.name)) ILIKE LOWER(unaccent(:search))`, {
-        search: `%${search}%`,
-      });
+      queryBuilder.andWhere(
+        `LOWER(unaccent(topic.name)) ILIKE LOWER(unaccent(:search))`,
+        { search: `%${search}%` },
+      );
     }
+
 
 
     queryBuilder.orderBy(`topic.subject`, 'ASC')
@@ -148,22 +146,13 @@ export class TopicsService {
     const isOwner = example?.createdBy?.id === user.id;
     const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
 
-    if (!user.isAdmin && !isOwner) {
-      throw new ForbiddenException('Không có quyền ');
+    if (!user.isAdmin) {
+      if (example?.createdBy?.id !== user.id) {
+        throw new ForbiddenException('Không có quyền xóa');
+      }
     }
 
-    if (user.isAdmin && !isSameSchoolType) {
-      throw new ForbiddenException('Không có quyền');
-    }
-
-    if (example?.createdBy.id !== user.id) {
-      throw new ForbiddenException('Không có quyền');
-    }
-
-    if (example?.createdBy?.id !== user.id) {
-      console.log(user);
-      throw new ForbiddenException('Không có quyền');
-    }
+    
 
     const subject: Subject = await this.repoSubject.findOne({
       where: {
@@ -186,21 +175,10 @@ export class TopicsService {
     const isOwner = resource?.createdBy?.id === user.id;
     const isSameSchoolType = resource?.school?.schoolType === user.school?.schoolType;
 
-    if (!user.isAdmin && !isOwner) {
-      throw new ForbiddenException('Không có quyền ');
-    }
-
-    if (user.isAdmin && !isSameSchoolType) {
-      throw new ForbiddenException('Không có quyền');
-    }
-
-    if (resource?.createdBy.id !== user.id) {
-      throw new ForbiddenException('Không có quyền');
-    }
-
-    if (resource?.createdBy?.id !== user.id) {
-      console.log(user);
-      throw new ForbiddenException('Không có quyền');
+    if (!user.isAdmin) {
+      if (resource?.createdBy?.id !== user.id) {
+        throw new ForbiddenException('Không có quyền xóa');
+      }
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

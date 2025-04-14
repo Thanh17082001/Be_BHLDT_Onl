@@ -72,11 +72,15 @@ export class FileController {
     }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
+
   findOne(@Param('id') id: string) {
     return this.fileService.findOne(+id);
   }
 
   @Patch(':id')
+  @Roles(Role.TEACHER)
+
   update(@Param('id') id: string, @Body() updateFileDto: UpdateFileDto) {
     return this.fileService.update(+id, updateFileDto);
   }

@@ -86,6 +86,8 @@ export class TopicsController {
   }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
+
   findOne(@Param('id') id: string) {
     return this.topicsService.findOne(+id);
   }
