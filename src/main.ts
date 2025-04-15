@@ -11,13 +11,16 @@ import { join } from 'path';
 import { StaticFilesMiddleware } from 'src/common/middlewares/static-files.middleware';
 import { AppModule } from './app.module';
 import { DoaminsService } from './doamins/doamins.service';
+import { MyLogger } from './common/logging/logger.service';
 
 
 
 async function bootstrap() {
 
   //version api
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new MyLogger(), // 👈 sử dụng logger custom
+  } );
 
   const configService = app.get(ConfigService);
 

@@ -12,6 +12,7 @@ import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
 import { Grade } from './entities/grade.entity';
 import { User } from 'src/users/entities/user.entity';
 import { SchoolType } from 'src/schools/entities/school.entity';
+import { Role } from 'src/role/role.enum';
 
 @Injectable()
 export class GradeService {
@@ -44,11 +45,13 @@ export class GradeService {
       // Lấy khoảng lớp phù hợp theo schoolType
       const range = gradeRanges[user.school.schoolType];
 
+    if (user.role !== Role.SUPER_ADMIN) {
       if (range) {
         queryBuilder.andWhere(`CAST(grade.name AS INTEGER) BETWEEN :min AND :max`, {
           min: range.min,
           max: range.max,
         });
+      }
       }
     
 
@@ -71,7 +74,7 @@ export class GradeService {
     }
 
 
-    queryBuilder.orderBy(`grade.createdAt`, order)
+    queryBuilder.orderBy(`grade.name`, 'ASC')
       .skip(skip)
       .take(take);
 

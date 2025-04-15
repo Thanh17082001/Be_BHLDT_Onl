@@ -53,8 +53,12 @@ export class TopicsService {
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<Topic>, user: User): Promise<PageDto<Topic>> {
 
-    const queryBuilder = this.repo.createQueryBuilder('topic').leftJoinAndSelect('topic.subject', 'subject')
-      .leftJoinAndSelect('topic.school', 'school').leftJoinAndSelect('topic.createdBy', 'createdBy').leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
+    const queryBuilder = this.repo.createQueryBuilder('topic')
+      .leftJoinAndSelect('topic.subject', 'subject')
+      .leftJoinAndSelect('subject.grade', 'grade')
+      .leftJoinAndSelect('topic.school', 'school')
+      .leftJoinAndSelect('topic.createdBy', 'createdBy')
+      .leftJoinAndSelect('school.users', 'users'); // Lấy danh sách giáo viên phụ trách môn học
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
@@ -92,9 +96,17 @@ export class TopicsService {
 
     // 📦 Lọc theo các trường khác
     if (!!query && Object.keys(query).length > 0) {
-      Object.keys(query).forEach((key) => {
+      Object.entries(query).forEach(([key, value]) => {
         if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`topic.${key} = :${key}`, { [key]: query[key] });
+          if (key === 'gradeId') {
+            queryBuilder.andWhere('grade.id = :gradeId', {
+              gradeId: +value,
+            });
+          } else {
+            queryBuilder.andWhere(`topic.${key} = :${key}`, {
+              [key]: isNaN(Number(value)) ? value : +value,
+            });
+          }
         }
       });
     }

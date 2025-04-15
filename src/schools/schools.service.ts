@@ -63,7 +63,7 @@ export class SchoolsService {
     // 🔐 Phân quyền theo role
     if (user.role !== Role.ADMIN) {
       queryBuilder.andWhere('school.id = :schoolId', { schoolId: user.school.id });
-    } else {
+    } else if (user.role === Role.ADMIN) {
       // Nếu là admin, lọc theo loại trường nếu có
       const schoolTypesQuery = schoolTypes(user); // function này bạn đã có
       if (schoolTypesQuery.length > 0) {

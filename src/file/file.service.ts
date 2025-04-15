@@ -101,6 +101,7 @@ export class FileService {
       .createQueryBuilder('file')
       .leftJoinAndSelect('file.fileType', 'fileType')
       .leftJoinAndSelect('file.subject', 'subject')
+      .leftJoinAndSelect('subject.grade', 'grade')
       .leftJoinAndSelect('file.topic', 'topic')
       .leftJoinAndSelect('file.images', 'images')
       .leftJoinAndSelect('file.school', 'school') // Lấy thông tin trường
@@ -146,14 +147,30 @@ export class FileService {
         }),
       );
     }
+   
 
     // 🎯 Lọc theo các trường từ query params (bỏ qua các tham số phân trang)
-    if (query && typeof query === 'object') {
+    if (query) {
       Object.entries(query).forEach(([key, value]) => {
-        if (key && !pagination.includes(key)) {
-          queryBuilder.andWhere(`file.${key} = :${key}`, {
-            [key]: isNaN(Number(value)) ? value : +value,
+
+        if ('parent_id' in query && query.parent_id !== undefined && query.parent_id !== null) {
+          queryBuilder.andWhere(`file.parent_id = :parent_id`, {
+            parent_id: +query.parent_id,
           });
+        } else {
+          queryBuilder.andWhere('file.parent_id IS NULL');
+        }
+        if (key && !pagination.includes(key)) {
+          
+          if (key === 'gradeId') {
+            queryBuilder.andWhere('grade.id = :gradeId', {
+              gradeId: +value,
+            });
+          } else  {
+            queryBuilder.andWhere(`file.${key} = :${key}`, {
+              [key]: isNaN(Number(value)) ? value : +value,
+            });
+          }
         }
       });
     }
@@ -169,7 +186,7 @@ export class FileService {
     }
 
     // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('subject.createdAt', order).skip(skip).take(take);
+    queryBuilder.orderBy('file.createdAt', order).skip(skip).take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
