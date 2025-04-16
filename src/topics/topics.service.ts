@@ -154,12 +154,10 @@ export class TopicsService {
       throw new NotFoundException(`Topic with ID ${id} not found`);
     }
 
-    const isOwner = example?.createdBy?.id === user.id;
-    const isSameSchoolType = example?.school?.schoolType === user.school?.schoolType;
 
     if (!user.isAdmin) {
       if (example?.createdBy?.id !== user.id) {
-        throw new ForbiddenException('Không có quyền xóa');
+        throw new ForbiddenException('Không có quyền chỉnh sửa');
       }
     }
 

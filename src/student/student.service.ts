@@ -47,7 +47,7 @@ export class StudentService {
     const district = await this.repoDistrict.findOne({ where: { id: createStudentDto.district_id } });
     const province = await this.repoProvince.findOne({ where: { id: createStudentDto.province_id } });
     const ward = await this.repoWard.findOne({ where: { id: createStudentDto.ward_id } });
-    const studentExist = await this.repo.findOne({ where: { code, class: classOfStudent } });
+    const studentExist = await this.repo.findOne({ where: { code, class: { id: createStudentDto.classId }, school:{id:user.school.id}} });
     if (studentExist) {
       throw new HttpException('Mã định danh đã tồn tại', 409);
     }
@@ -199,8 +199,8 @@ export class StudentService {
   }
 
   
-  async update(id: number, updateStudentDto: UpdateStudentDto) {
-    const { fullname } = updateStudentDto;
+  async update(id: number, updateStudentDto: UpdateStudentDto, user:User) {
+    const { fullname, code } = updateStudentDto;
   
     const classOfStudent = await this.repoClass.findOne({ where: { id: updateStudentDto.classId } });
     const district = await this.repoDistrict.findOne({ where: { id: updateStudentDto.district_id } });
@@ -210,6 +210,10 @@ export class StudentService {
 
     if (!example) {
       throw new NotFoundException(`Student with ID ${id} not found`);
+    }
+    const studentExist = await this.repo.findOne({ where: { code, class: { id: updateStudentDto.classId }, school: { id: user.school.id } } });
+    if (studentExist) {
+      throw new HttpException('Mã định danh đã tồn tại', 409);
     }
    
 const a=this.repo.merge(example, {...updateStudentDto, fullname: updateStudentDto.fullname, district, province, ward, class: classOfStudent })
@@ -303,9 +307,14 @@ const a=this.repo.merge(example, {...updateStudentDto, fullname: updateStudentDt
   }
 
   async remove(id: number) {
-    const example = this.repo.findOne({ where: { id } });
+    const example = await this.repo.findOne({ where: { id } });
+    const scores = await this.repoScore.find({ where: { student: { id } } });
     if (!example) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
+    }
+
+    if (scores.length > 0) {
+      throw new BadRequestException('Không thể xóa học sinh này vì đã có điểm số');
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

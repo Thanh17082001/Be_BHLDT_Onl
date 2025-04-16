@@ -135,8 +135,9 @@ private readonly provinceService: ProvinceService,
 
   @Put(':id')
   @Roles(Role.TEACHER)
-  update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto) {
-    return this.stundentService.update(+id, updateStudentDto);
+  update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto, @Req() request: Request) {
+    const user: User = request['user'] ?? null;
+    return this.stundentService.update(+id, updateStudentDto,user);
   }
 
   @Delete(':id')

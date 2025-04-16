@@ -28,7 +28,8 @@ export class SchoolYearService {
     if (endYear < startYear) {
       throw new BadRequestException('Năm học không hợp lệ');
     }
-    if (await this.repo.findOne({where:{name, school: { id: createSchoolYearDto.schoolId }} })) {
+    const exist = await this.repo.findOne({ where: { name, school: { id: createSchoolYearDto.schoolId }, createdBy: { id: user.id } } })
+    if (exist) {
       throw new HttpException('Tên đã tồn tại',409);
     }
     const newUser = this.repo.create({ startYear,endYear ,name , createdBy: user, school: school ?? null });
@@ -48,17 +49,7 @@ export class SchoolYearService {
     const { take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
-    // 🎯 Lọc theo điều kiện query
-    if (query && Object.keys(query).length > 0) {
-      Object.keys(query).forEach((key) => {
-        if (!pagination.includes(key)) {
-          queryBuilder.andWhere(`schoolYear.${key} = :${key}`, {
-            [key]: query[key],
-          });
-        }
-      });
-    }
-
+   
     // 🔐 Phân quyền dữ liệu
     if (user.role === Role.TEACHER) {
       queryBuilder.andWhere(
@@ -83,6 +74,18 @@ export class SchoolYearService {
         );
       }
     }
+
+    // 🎯 Lọc theo điều kiện query
+    if (query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
+        if (!pagination.includes(key)) {
+          queryBuilder.andWhere(`schoolYear.${key} = :${key}`, {
+            [key]: query[key],
+          });
+        }
+      });
+    }
+
 
     // 🔍 Tìm kiếm theo tên năm học
     if (search) {
@@ -113,9 +116,9 @@ export class SchoolYearService {
     return new ItemDto(schoolyear);
   }
 
-  async update(id: number, updateSchoolYearDto: UpdateSchoolYearDto) {
+  async update(id: number, updateSchoolYearDto: UpdateSchoolYearDto, user:User) {
     const { name } = updateSchoolYearDto;
-    const schoolyearExits:SchoolYear = await this.repo.findOne({where:{name,id: Not(id)}});
+    const schoolyearExits: SchoolYear = await this.repo.findOne({ where: { name, id: Not(id), school: { id: updateSchoolYearDto.schoolId }, createdBy: { id: user.id } } });
     if (schoolyearExits){
       throw new HttpException('Tên đã tồn tại',409);
     }
@@ -129,7 +132,8 @@ export class SchoolYearService {
     if (updateSchoolYearDto.endYear < updateSchoolYearDto.startYear) {
       throw new BadRequestException('Năm học không hợp lệ');
     }
-    await this.repo.update(id, {startYear:updateSchoolYearDto.startYear,endYear:updateSchoolYearDto.endYear,name:name})
+    const newName = `${updateSchoolYearDto.startYear} - ${updateSchoolYearDto.endYear}`;
+    await this.repo.update(id, { startYear: updateSchoolYearDto.startYear, endYear: updateSchoolYearDto.endYear, name: newName })
 
     return new ItemDto(schoolyear);;
   }

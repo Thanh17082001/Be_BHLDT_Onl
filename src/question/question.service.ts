@@ -43,7 +43,7 @@ export class QuestionService {
     user: User,
   ): Promise<Question> {
     const { content, schoolId, answers, subjectId, partId, topicId, typeQuestionId, levelId, score, numberOfAnswers } = createQuestionDto;
-
+    console.log(createQuestionDto);
     createQuestionDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
       where: { id: createQuestionDto.schoolId },
@@ -205,6 +205,7 @@ export class QuestionService {
 
 
     const example: Question = await this.repo.findOne({ where: { id } });
+    console.log(example);
 
     if (!example) {
       throw new NotFoundException(`Question with ID ${id} not found`);

@@ -17,6 +17,7 @@ export class StaticFilesMiddleware {
         StaticFilesMiddleware.allowedDomains = await this.allowedDomainService.findAll();
         console.log(StaticFilesMiddleware.allowedDomains);
         StaticFilesMiddleware.domainNames = StaticFilesMiddleware.allowedDomains.map((domain) => domain.name);
+        console.log(StaticFilesMiddleware.domainNames);
     }
 
     use(req: Request, res: Response, next: NextFunction) {

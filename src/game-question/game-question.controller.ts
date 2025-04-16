@@ -1,5 +1,5 @@
 
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards, Req, Patch } from '@nestjs/common';
 
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { RolesGuard } from 'src/role/role.guard';
@@ -38,7 +38,7 @@ export class GameQuestionController {
     return this.gameQuestionService.findOne(+id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @Roles(Role.TEACHER)
   update(@Param('id') id: string, @Body() updateGameDto: UpdateGameQuestionDto) {
     return this.gameQuestionService.update(+id, updateGameDto);

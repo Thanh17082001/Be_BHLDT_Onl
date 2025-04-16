@@ -194,7 +194,7 @@ export class ClassService {
 
   async update(id: number, updateClassDto: UpdateClassDto) {
     const { name, suffixes,gradeId,schoolYearId } = updateClassDto;
-    const exampleExits: Class = await this.repo.findOne({ where: { name, id: Not(id) } });
+    const exampleExits: Class = await this.repo.findOne({ where: { name, id: Not(id), school: { id: updateClassDto.schoolId }, schoolYear: { id: schoolYearId } } });
     if (exampleExits) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
@@ -218,9 +218,15 @@ export class ClassService {
   }
 
   async remove(id: number) {
-    const example = this.repo.findOne({ where: { id } });
+    const example = await this.repo.findOne({ where: { id }, relations: ['students'] });
     if (!example) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
+    }
+
+    console.log(example);
+
+    if (example.students.length > 0) {
+      throw new HttpException('Không thể xóa lớp học này vì nó đang chứa học sinh', 400);
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));

@@ -18,9 +18,13 @@ import { MyLogger } from './common/logging/logger.service';
 async function bootstrap() {
 
   //version api
-  const app = await NestFactory.create(AppModule, {
-    logger: new MyLogger(), // 👈 sử dụng logger custom
-  } );
+  const isProd = process.env.NODE_ENV === 'production';
+
+  const app = isProd
+    ? await NestFactory.create(AppModule, {
+      logger: new MyLogger(), // 👈 chỉ dùng logger nếu là production
+    })
+    : await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
 

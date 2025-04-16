@@ -29,13 +29,19 @@ export class SchoolYearController {
   }
 
   @Get(':id')
+  @Roles(Role.TEACHER)
+
   findOne(@Param('id') id: string) {
     return this.schoolYearService.findOne(+id);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateschoolYearDto: UpdateSchoolYearDto) {
-    return this.schoolYearService.update(+id, updateschoolYearDto);
+  @Roles(Role.TEACHER)
+
+  update(@Param('id') id: string, @Body() updateschoolYearDto: UpdateSchoolYearDto, @Req() request: Request) {
+    const user = request['user'] ?? null;
+
+    return this.schoolYearService.update(+id, updateschoolYearDto, user);
   }
 
   @Delete(':id')
