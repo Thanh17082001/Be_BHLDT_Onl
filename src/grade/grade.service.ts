@@ -74,7 +74,7 @@ export class GradeService {
     }
 
 
-    queryBuilder.orderBy(`grade.name`, 'ASC')
+    queryBuilder.orderBy('CAST(grade.name AS INT)', 'ASC')
       .skip(skip)
       .take(take);
 

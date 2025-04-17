@@ -152,7 +152,7 @@ export class LessonPlanService {
   }
 
   async update(id: number, updateLessonPlanDto: UpdateLessonPlanDto, user: User, isFile: boolean) {
-    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school'] });
+    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school','createdBy'] });
     if (!lessonPlan) {
       throw new NotFoundException('Lesson plan not found');
     }
@@ -178,14 +178,11 @@ export class LessonPlanService {
     if (!lessonPlan) {
       throw new NotFoundException('Lesson plan not found');
     }
-     const isOwner = lessonPlan?.createdBy?.id === user.id;
-        const isSameSchoolType = lessonPlan?.school?.schoolType === user.school?.schoolType;
-    
-        
-    
-    
-        if (lessonPlan?.createdBy.id !== user.id) {
-          throw new ForbiddenException('Không có quyền');
+
+    if (!user.isAdmin) {
+      if (lessonPlan?.createdBy?.id !== user.id) {
+        throw new ForbiddenException('Không có quyền');
+      }
         }
     
 
