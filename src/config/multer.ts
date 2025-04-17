@@ -21,7 +21,7 @@ export const storage = (folder: string, isSplit: boolean = false) =>
                     uploadPath = path.join(uploadPath, 'ptt');
                 } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
                     uploadPath = path.join(uploadPath, 'word');
-                } else {
+                } else if(file.mimetype == 'image/jpeg' || file.mimetype == 'image/png' || file.mimetype == 'image/jpg' || file.mimetype == 'image/gif') {
                     uploadPath = path.join(uploadPath, 'image');
                 }
             }
@@ -35,8 +35,11 @@ export const storage = (folder: string, isSplit: boolean = false) =>
         },
         filename: (req, file, cb) => {
             // Tạo tên tệp ngẫu nhiên
-            const randomName = randomNameFile(normalizeString(file.originalname));
-            console.log('aaaa');
+            const name = normalizeString(file.originalname)
+            console.log('aaaa', name);
+            
+            const randomName = randomNameFile(name);
+            console.log('aaaa', randomName);
             cb(null, `${randomName}`);
         },
     });

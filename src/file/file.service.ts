@@ -11,7 +11,7 @@ import { UpdateFileDto } from './dto/update-file.dto';
 import * as sharp from 'sharp';
 import * as pdfPoppler from 'pdf-poppler';
 import * as path from 'path';
-import { existsSync, statSync, unlinkSync, promises as fs } from 'fs';
+import { existsSync, statSync, unlinkSync, promises as fs, readdirSync, mkdirSync, writeFileSync } from 'fs';
 import { File } from './entities/file.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
@@ -30,8 +30,8 @@ import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { subscribe } from 'diagnostics_channel';
 import { schoolTypes } from 'src/common/constant/type-school-query';
 import { Voice } from 'src/voice/entities/voice.entity';
-import { RolesGuard } from 'src/role/role.guard';
-import { Roles } from 'src/role/role.decorator';
+import * as AdmZip from 'adm-zip';
+import * as unzipper from 'unzipper';
 
 @Injectable()
 
@@ -89,8 +89,74 @@ export class FileService {
       createedBy: user,
     };
     const fileTypeEntity = await this.repo.save(data);
+
+    const test = {
+      class: {
+        name: 'Lớp 1',
+        subject: [
+          {
+            name: 'Môn Toán',
+            topics: [
+              {
+                name: 'Chủ đề 1',
+                fileType: {
+                  name: 'video',
+                  children: [
+                    {
+                      name: 'Tài liệu 1',
+                      isFolder: false || true,
+                      files:[] //nếu là thư mục thì có này còn ko thì không có null và name thành tên file
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
     return fileTypeEntity;
   }
+
+
+
+
+  async extractTreeStructure(zipPath: string) {
+  const zip = await unzipper.Open.file(zipPath);
+
+  // Duyệt qua tất cả các file trong file zip
+  for (const entry of zip.files) {
+    const entryPath = entry.path;
+    const isDirectory = entry.type === 'Directory';
+
+    if (!isDirectory) {
+      const fileExtension = path.extname(entryPath).toLowerCase();
+      let saveDir = 'public/'; // Mặc định lưu vào thư mục public
+
+      // Xác định thư mục lưu theo loại file
+      if (fileExtension === '.jpg' || fileExtension === '.jpeg' || fileExtension === '.png' || fileExtension === '.gif') {
+        saveDir = 'public/images';
+      } else if (fileExtension === '.pdf' || fileExtension === '.docx') {
+        saveDir = 'public/pdfs';
+      } else if (fileExtension === '.mp4') {
+        saveDir = 'public/videos';
+      }
+
+      // Đảm bảo thư mục tồn tại
+      const savePath = path.join(saveDir, path.basename(entryPath));
+      if (!existsSync(saveDir)) {
+        mkdirSync(saveDir, { recursive: true });
+      }
+
+      // Lưu file vào thư mục
+      const fileBuffer = await entry.buffer();
+      writeFileSync(savePath, fileBuffer);
+      console.log(`Đã lưu file: ${savePath}`);
+    }
+  }
+}
+
+
 
   async findAll(
     pageOptions: PageOptionsDto,

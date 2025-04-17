@@ -13,6 +13,8 @@ import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { RolesGuard } from 'src/role/role.guard';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 
 @Controller('file')
   @UseGuards(RolesGuard)
@@ -62,6 +64,28 @@ export class FileController {
     }
     return await this.fileService.create(createFileDto, images,user);
 
+  }
+
+  
+
+  @Post('upload')
+    @Public()
+  @ApiOperation({ summary: 'Upload file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'File upload',
+    type: CreateFileDto,
+  })
+  @UseInterceptors(FileInterceptor('file', { storage: storage('zip', true), ...multerOptions }))
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() request: Request,
+  ) {
+
+    const filePath = join(__dirname, '..', '..', 'public', 'zip', file.filename);
+
+    const treeStructure = await this.fileService.extractTreeStructure(filePath);
+    return treeStructure;
   }
 
   @Get()
