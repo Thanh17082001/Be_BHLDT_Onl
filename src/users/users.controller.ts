@@ -59,7 +59,7 @@ export class UsersController {
             const fullName = row['HỌ TÊN GIÁO VIÊN']?.toString().trim();
             const schoolName = row['TÊN TRƯỜNG']?.toString().trim();
             const gradeLevels = typeSchool[row['LOẠI TRƯỜNG']] || [];
-            const subjectNames = row['MÔN HỌC']?.split(',').map((s: string) => s.trim()) || [];
+            const subjectNames = row['MÔN HỌC']?.split(',').map((s: string) => s.trim().toLowerCase()) || [];
             // Tạo hoặc tìm trường
             const schoolId = await this.schoolService.findOrCreateByName(schoolName, row['LOẠI TRƯỜNG']);
             // Tạo hoặc tìm các cấp học

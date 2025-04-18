@@ -39,7 +39,7 @@ export class SubjectsService {
       where: { id: createSubjectDto.schoolId },
     });
     const { name, gradeId } = createSubjectDto;
-    if (await this.repo.findOne({ where: { name, grade:{id:gradeId} } })) {
+    if (await this.repo.findOne({ where: { name:name.toLowerCase(), grade:{id:gradeId} } })) {
       throw new HttpException('Tên đã tồn tại', 409);
     }
     const grade: Grade = await this.repoGrade.findOne({
@@ -51,7 +51,7 @@ export class SubjectsService {
 
     const newSubject = this.repo.create({
       ...createSubjectDto,
-      name: `${name} ${grade.name}`,
+      name: `${name} ${grade.name}`.toLowerCase(),
       grade,
       createdBy: user,
       school: school,

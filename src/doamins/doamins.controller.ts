@@ -11,6 +11,7 @@ import { RolesGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { User } from 'src/users/entities/user.entity';
+import { Public } from 'src/auth/auth.decorator';
 
 @Controller('domain')
 @UseGuards(RolesGuard)
@@ -18,7 +19,7 @@ export class DoaminsController {
   constructor(private readonly doamainService: DoaminsService) { }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Public()
   async create(@Body() createDoaminDto: CreateDoaminDto, @Req() req) {
     const user: User = req.user || null;
     return this.doamainService.create(createDoaminDto, user);
