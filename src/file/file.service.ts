@@ -32,6 +32,7 @@ import { schoolTypes } from 'src/common/constant/type-school-query';
 import { Voice } from 'src/voice/entities/voice.entity';
 import * as AdmZip from 'adm-zip';
 import * as unzipper from 'unzipper';
+import { ensureDir, saveTempFile } from 'src/utils/zip';
 
 @Injectable()
 
@@ -121,40 +122,151 @@ export class FileService {
 
 
 
-  async extractTreeStructure(zipPath: string) {
-  const zip = await unzipper.Open.file(zipPath);
+  async extractTreeStructureOK(zipPath: string) {
+    const zip = await unzipper.Open.file(zipPath);
 
-  // Duyệt qua tất cả các file trong file zip
-  for (const entry of zip.files) {
-    const entryPath = entry.path;
-    const isDirectory = entry.type === 'Directory';
+    const tree: any = {
+      class: {
+        name: '',
+        subject: [],
+      },
+    };
 
-    if (!isDirectory) {
-      const fileExtension = path.extname(entryPath).toLowerCase();
-      let saveDir = 'public/'; // Mặc định lưu vào thư mục public
+    for (const entry of zip.files) {
+      if (entry.type === 'File') {
+        const parts = entry.path.split('/').filter(Boolean); // Lớp/Môn/Chủ đề/Loại/Thư mục/File
 
-      // Xác định thư mục lưu theo loại file
-      if (fileExtension === '.jpg' || fileExtension === '.jpeg' || fileExtension === '.png' || fileExtension === '.gif') {
-        saveDir = 'public/images';
-      } else if (fileExtension === '.pdf' || fileExtension === '.docx') {
-        saveDir = 'public/pdfs';
-      } else if (fileExtension === '.mp4') {
-        saveDir = 'public/videos';
+        if (parts.length < 5) continue;
+
+        const [className, subjectName, topicName, fileTypeName, ...restPath] = parts;
+        const fileName = restPath.pop(); // Tên file
+        const subFolders = restPath; // Các thư mục con nếu có
+
+        // Đọc buffer file
+        const fileBuffer = await entry.buffer();
+
+        // 🚧 Gán dữ liệu vào cây
+        if (!tree.class.name) {
+          tree.class.name = className;
+        }
+
+        // Tìm hoặc tạo môn học
+        let subject = tree.class.subject.find((s: any) => s.name === subjectName);
+        if (!subject) {
+          subject = { name: subjectName, topics: [] };
+          tree.class.subject.push(subject);
+        }
+
+        // Tìm hoặc tạo chủ đề
+        let topic = subject.topics.find((t: any) => t.name === topicName);
+        if (!topic) {
+          topic = { name: topicName, fileType: {} };
+          subject.topics.push(topic);
+        }
+
+        // Tìm hoặc tạo loại file (video, tranh, ...)
+        if (!topic.fileType[fileTypeName]) {
+          topic.fileType[fileTypeName] = { name: fileTypeName, children: [] };
+        }
+
+        let currentChildren = topic.fileType[fileTypeName].children;
+
+        // Tạo thư mục con nếu có
+        for (const folderName of subFolders) {
+          let folder = currentChildren.find((c: any) => c.name === folderName && c.isFolder);
+          if (!folder) {
+            folder = { name: folderName, isFolder: true, files: [] };
+            currentChildren.push(folder);
+          }
+          currentChildren = folder.files;
+        }
+
+        // Thêm file với buffer
+        currentChildren.push({
+          name: fileName,
+          isFolder: false,
+          buffer: fileBuffer, // ✨ Gắn buffer để lưu sau
+        });
       }
-
-      // Đảm bảo thư mục tồn tại
-      const savePath = path.join(saveDir, path.basename(entryPath));
-      if (!existsSync(saveDir)) {
-        mkdirSync(saveDir, { recursive: true });
-      }
-
-      // Lưu file vào thư mục
-      const fileBuffer = await entry.buffer();
-      writeFileSync(savePath, fileBuffer);
-      console.log(`Đã lưu file: ${savePath}`);
     }
+
+
+
+
+    console.log(JSON.stringify(tree.class.subject)); // In ra cây cấu trúc
+
+    return true;
   }
-}
+  
+  async extractTreeStructure(zipPath: string) {
+    const extractDir = path.join('public2', 'temp');
+    await ensureDir(extractDir);
+
+    const zip = await unzipper.Open.file(zipPath);
+
+    const tree: any = {
+      class: {
+        name: '',
+        subject: [],
+      },
+    };
+
+    for (const entry of zip.files) {
+      if (entry.type === 'File') {
+        const parts = entry.path.split('/').filter(Boolean); // Lớp/Môn/Chủ đề/Loại/Thư mục/File
+
+        if (parts.length < 5) continue;
+
+        const [className, subjectName, topicName, fileTypeName, ...restPath] = parts;
+        const fileName = restPath.pop();
+        const subFolders = restPath;
+
+        // 👇 Giải nén và lưu file
+        const savedFilePath = await saveTempFile(entry, extractDir);
+        const relativePath = path.resolve(savedFilePath);
+
+        // 🎯 Gán dữ liệu vào cây
+        if (!tree.class.name) {
+          tree.class.name = className;
+        }
+
+        let subject = tree.class.subject.find((s: any) => s.name === subjectName);
+        if (!subject) {
+          subject = { name: subjectName, topics: [] };
+          tree.class.subject.push(subject);
+        }
+
+        let topic = subject.topics.find((t: any) => t.name === topicName);
+        if (!topic) {
+          topic = { name: topicName, fileType: {} };
+          subject.topics.push(topic);
+        }
+
+        if (!topic.fileType[fileTypeName]) {
+          topic.fileType[fileTypeName] = { name: fileTypeName, children: [] };
+        }
+
+        let currentChildren = topic.fileType[fileTypeName].children;
+
+        for (const folderName of subFolders) {
+          let folder = currentChildren.find((c: any) => c.name === folderName && c.isFolder);
+          if (!folder) {
+            folder = { name: folderName, isFolder: true, files: [] };
+            currentChildren.push(folder);
+          }
+          currentChildren = folder.files;
+        }
+
+        currentChildren.push({
+          name: fileName,
+          isFolder: false,
+          path: relativePath, // ✅ Chỉ lưu đường dẫn
+        });
+      }
+    }
+
+    return tree;
+  }
 
 
 
