@@ -37,6 +37,7 @@ import { VoiceModule } from './voice/voice.module';
 import { LessonPlanModule } from './lesson-plan/lesson-plan.module';
 import { GameQuestionModule } from './game-question/game-question.module';
 import { GameModule } from './game/game.module';
+import { ElearningModule } from './elearning/elearning.module';
 
 @Module({
   imports: [
@@ -102,7 +103,8 @@ import { GameModule } from './game/game.module';
     VoiceModule,
     LessonPlanModule,
     GameQuestionModule,
-    GameModule
+    GameModule,
+    ElearningModule
   ],
   controllers: [],
   providers: [
