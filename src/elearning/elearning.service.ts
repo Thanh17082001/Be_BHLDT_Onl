@@ -10,7 +10,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { ItemDto, PageDto } from 'src/common/pagination/page.dto';
 import { PageMetaDto } from 'src/common/pagination/page.metadata.dto';
@@ -21,28 +21,46 @@ import { School } from 'src/schools/entities/school.entity';
 import { schoolTypes } from 'src/common/constant/type-school-query';
 import { Question } from 'src/question/entities/question.entity';
 import { Elearning } from './entities/elearning.entity';
+import { Subject } from 'src/subjects/entities/subject.entity';
+import { Topic } from 'src/topics/entities/topic.entity';
 
 @Injectable()
 export class ElearningService {
   constructor(
     @InjectRepository(Elearning) private repo: Repository<Elearning>,
     @InjectRepository(School) private repoSchool: Repository<School>,
+    @InjectRepository(Subject) private repoSubject: Repository<Subject>,
+    @InjectRepository(Topic) private repoTopic: Repository<Topic>,
   ) { }
   async create(
     createElearningDto: CreateElearningDto,
     user: User,
   ): Promise<Elearning> {
-    const { content, schoolId, title } = createElearningDto;
+    const { content, schoolId, title ,subjectId, topicId} = createElearningDto;
 
     createElearningDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
       where: { id: schoolId },
     });
-    
+    const subject = await this.repoSubject.findOne({
+      where: { id: subjectId },
+    });
+    const topic = await this.repoTopic.findOne({
+      where: { id: topicId },
+    });
+    if (!subject) {
+      throw new NotFoundException(`Không tìm thấy môn học`);
+    }
+
+    if (!topic) {
+      throw new NotFoundException(`Không tìm thấy chủ đề`);
+    }
 
     const newElearning = this.repo.create({
       content,
       title,
+      subject: subject,
+      topic: topic,
       createdBy: user,
       school: school,
     });
@@ -61,8 +79,38 @@ export class ElearningService {
 
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+    if (user) {
+      const schoolTypesQuery = schoolTypes(user);
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          if (user.role === Role.TEACHER) {
+            const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+            if (subjectIds.length > 0) {
+              qb.where('subject.id IN (:...subjectIds)', { subjectIds })
+                .orWhere(
+                  '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+                  {
+                    isAdmin: true,
+                    schoolTypesQuery,
+                  },
+                );
+            }
+          } else if (user.role === Role.PRINCIPAL) {
+            qb.where('school.id = :schoolId', { schoolId: user.school.id })
+              .orWhere(
+                '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+                {
+                  isAdmin: true,
+                  schoolTypesQuery,
+                },
+              );
+          } else if (user.role === Role.ADMIN) {
+            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }
+        }),
+      );
 
-
+   }
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
