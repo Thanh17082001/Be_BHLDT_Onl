@@ -13,7 +13,7 @@ import { Public } from 'src/auth/auth.decorator';
 
 @Controller('elearning')
 @UseGuards(RolesGuard)
-  @Public()
+@Roles(Role.TEACHER)
 
 export class ElearningController {
   constructor(private readonly ElearningService: ElearningService) { }

@@ -12,5 +12,6 @@ import { TopicsModule } from 'src/topics/topics.module';
   imports:[TypeOrmModule.forFeature([Elearning]), SchoolsModule, SubjectsModule,TopicsModule], // Add your entities here
   controllers: [ElearningController],
   providers: [ElearningService],
+  exports: [ElearningService, TypeOrmModule],
 })
 export class ElearningModule {}
