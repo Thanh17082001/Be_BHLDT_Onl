@@ -15,15 +15,14 @@ export class StaticFilesMiddleware {
 
     async loadAllowedDomains() {
         StaticFilesMiddleware.allowedDomains = await this.allowedDomainService.findAll();
-        console.log(StaticFilesMiddleware.allowedDomains);
         StaticFilesMiddleware.domainNames = StaticFilesMiddleware.allowedDomains.map((domain) => domain.name);
-        console.log(StaticFilesMiddleware.domainNames);
     }
 
     use(req: Request, res: Response, next: NextFunction) {
         const origin = req.headers.origin ?? req.headers.referer; // Lấy Origin hoặc Referer
         
 
+        console.log(StaticFilesMiddleware.domainNames, 'thiên thanh');
 
         // Chỉ cho phép truy cập từ FE của bạn
 

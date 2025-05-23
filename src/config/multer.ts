@@ -36,7 +36,6 @@ export const storage = (folder: string, isSplit: boolean = false) =>
         filename: (req, file, cb) => {
             // Tạo tên tệp ngẫu nhiên
             const randomName = randomNameFile(normalizeString(file.originalname));
-            console.log('aaaa');
             cb(null, `${randomName}`);
         },
     });

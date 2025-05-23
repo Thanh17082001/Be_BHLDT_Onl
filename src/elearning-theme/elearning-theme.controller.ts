@@ -30,7 +30,7 @@ export class ElearningThemeController {
          description: 'File upload',
          type: CreateElearningThemeDto,
        })
-       @UseInterceptors(FileInterceptor('file', { storage: storage('elearning-theme', true), ...multerOptions }))
+       @UseInterceptors(FileInterceptor('file', { storage: storage('elearning-theme', false), ...multerOptions }))
   create(@UploadedFile() file: Express.Multer.File,@Body() createElearningThemeDto: CreateElearningThemeDto, @Req() request: Request) {
    const user: User = request['user'] ?? null;
    createElearningThemeDto.path = `public/elearning-theme/${file.filename}`;
@@ -50,9 +50,22 @@ export class ElearningThemeController {
   }
 
   @Put(':id')
-  // @Roles(Role.TEACHER)
-  update(@Param('id') id: string, @Body() updatelearningThemeDto: UpdateElearningThemeDto) {
-    return this.elearningThemeService.update(+id, updatelearningThemeDto);
+  @Post()
+  @ApiOperation({ summary: 'Upload file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'File upload',
+    type: CreateElearningThemeDto,
+  })
+  @UseInterceptors(FileInterceptor('file', { storage: storage('elearning-theme', false), ...multerOptions }))
+  update(@UploadedFile() file: Express.Multer.File, @Param('id') id: string, @Body() updatelearningThemeDto: UpdateElearningThemeDto, @Req() request: Request) {
+    const user = request['user'] ?? null;
+    let isFile = false;
+    if (file) {
+      updatelearningThemeDto.path = `public/elearning-theme/${file.filename}`;
+      isFile = true;
+    }
+    return this.elearningThemeService.update(+id, updatelearningThemeDto, user, isFile);
   }
 
   @Delete(':id')

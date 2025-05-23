@@ -37,8 +37,10 @@ async function bootstrap() {
     origin: (origin, callback) => {
       console.log(origin);
       if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
+        console.log('thiseashlkajshdlkhj asad');
         callback(null, true);
       } else {
+        console.log('álkdjhaslkdjahsldkjaslkdj');
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -51,6 +53,7 @@ async function bootstrap() {
 
 
   app.use('/public', staticFile.use);
+  // app.use('/public', express.static(join(__dirname, '..', 'public')));
 
   app.use(express.static(join(__dirname, '..' )));
   app.use(express.json({ limit: '1024mb' }))

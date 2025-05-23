@@ -17,9 +17,11 @@ import { Role } from 'src/role/role.enum';
 import { School } from 'src/schools/entities/school.entity';
 import { schoolTypes } from 'src/common/constant/type-school-query';
 
-import * as path from 'path';
-import { existsSync, statSync, unlinkSync, promises as fs } from 'fs';
+
 import { ElearningTheme } from './entities/elearning-theme.entity';
+
+import * as pathLib from 'path';
+import { existsSync, statSync, unlinkSync, promises as fs } from 'fs';
 
 @Injectable()
 export class ElearningThemeService {
@@ -133,7 +135,7 @@ export class ElearningThemeService {
   }
 
   async findOne(id: number): Promise<ItemDto<ElearningTheme>> {
-      const example = await this.repo.findOne({ where: { id } });
+      const example = await this.repo.findOne({ where: { id }, relations: ['school','createdBy'] });
       if (!example) {
         throw new HttpException('Not found', 404);
       }
@@ -142,17 +144,25 @@ export class ElearningThemeService {
 
   
 
-  async update(id: number, updateElearningThemeDto: UpdateElearningThemeDto) {
+  async update(id: number, updateElearningThemeDto: UpdateElearningThemeDto, user: User, isFile: boolean = false): Promise<ItemDto<ElearningTheme>> {
     const { title, content, path } = updateElearningThemeDto;
 
 
-    const example: ElearningTheme = await this.repo.findOne({ where: { id } });
+    const example: ElearningTheme = await this.repo.findOne({ where: { id }, relations: ['school','createdBy'] });
 
     if (!example) {
       throw new NotFoundException(`ElearningTheme with ID ${id} not found`);
     }
-
+  //   if (isFile) {
+  //     const oldPath = pathLib.join(__dirname, '..', '..', example.path);
+  //     if (existsSync(oldPath) && example.path) {
+  //       unlinkSync(oldPath);
+  //     }
+  // }
+      
+    
    
+
 
 
     this.repo.merge(example, { title, content, path });
@@ -167,7 +177,7 @@ export class ElearningThemeService {
       where: { id },
     });
 
-    const filePath = path.join(__dirname, '..', '..', 'public', example.path);
+    const filePath = pathLib.join(__dirname, '..', '..', 'public', example.path);
 
     // Kiểm tra và xóa file
     if (existsSync(filePath)) {
