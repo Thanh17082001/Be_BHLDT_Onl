@@ -27,7 +27,7 @@ export class StaticFilesMiddleware {
         // Chỉ cho phép truy cập từ FE của bạn
 
         // Nếu request có Origin hoặc Referer hợp lệ (FE của bạn)
-        if (origin && StaticFilesMiddleware.domainNames.includes(origin)) {
+        if (origin && StaticFilesMiddleware.domainNames.includes(origin) || origin.includes('localhost') ){
             console.log('dc wwwww');
             return next();
         }

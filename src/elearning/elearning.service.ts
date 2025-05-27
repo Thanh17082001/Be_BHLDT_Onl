@@ -36,31 +36,26 @@ export class ElearningService {
     createElearningDto: CreateElearningDto,
     user: User,
   ): Promise<Elearning> {
-    const { content, schoolId, title ,subjectId, topicId} = createElearningDto;
+    const { content, title ,subjectId, topicId} = createElearningDto;
 
     createElearningDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
-      where: { id: schoolId },
+      where: { id: createElearningDto.schoolId },
     });
     const subject = await this.repoSubject.findOne({
       where: { id: subjectId },
     });
-    const topic = await this.repoTopic.findOne({
-      where: { id: topicId },
-    });
+    
     if (!subject) {
       throw new NotFoundException(`Không tìm thấy môn học`);
     }
 
-    if (!topic) {
-      throw new NotFoundException(`Không tìm thấy chủ đề`);
-    }
 
     const newElearning = this.repo.create({
       content,
       title,
       subject: subject,
-      topic: topic,
+      topic: topicId,
       createdBy: user,
       school: school,
     });

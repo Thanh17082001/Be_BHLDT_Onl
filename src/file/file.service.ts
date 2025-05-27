@@ -80,6 +80,7 @@ export class FileService {
     }
     const data = {
       ...fileCreate,
+      isGdGroup: +createFileDto.isGdGroup ==1 ? true :false,
       images: resutlImages,
       school,
       fileType: fileType ?? null,

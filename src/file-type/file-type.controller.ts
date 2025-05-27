@@ -9,10 +9,12 @@ import { RolesGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { FileType } from './entities/file-type.entity';
+import { Public } from 'src/auth/auth.decorator';
 
 @Controller('file-type')
-@UseGuards(RolesGuard)
-@Roles(Role.ADMIN)
+// @UseGuards(RolesGuard)
+  // @Roles(Role.ADMIN)
+  @Public()
 export class FileTypeController {
   constructor(private readonly fileTypeService: FileTypeService) { }
 
@@ -23,7 +25,7 @@ export class FileTypeController {
     const names: string[] =['Tranh ảnh', 'Video','Sách tham khảo'];
     for (let i = 0; i < names.length; i++) {
       createFileTypeDto.name = names[i];
-      result.push(await this.fileTypeService.create(createFileTypeDto));
+      result.push(await this.fileTypeService.create(createFileTypeDto))
     }
     return result
   }

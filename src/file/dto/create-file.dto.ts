@@ -44,5 +44,10 @@ export class CreateFileDto extends OmitType(BaseDto,[] as const) {
     isFolder: boolean = true;
 
 
+    @ApiProperty({ required: false })
+    @IsString()
+    @IsOptional()
+    isGdGroup?: boolean = true;
+
 }
 
