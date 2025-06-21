@@ -111,6 +111,7 @@ export class ElearningService {
     if (!!query && Object.keys(query).length > 0) {
       Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
+          console.log(query);
           queryBuilder.andWhere(`Elearning.${key} = :${key}`, {
             [key]: query[key],
           });
@@ -150,7 +151,7 @@ export class ElearningService {
   }
 
   async update(id: number, updateElearningDto: UpdateElearningDto) {
-    const { content, title } = updateElearningDto;
+    const { content, title ,subjectId, topicId} = updateElearningDto;
 
 
     const example: Elearning = await this.repo.findOne({ where: { id }, relations: ['createdBy', 'school'] });
@@ -159,7 +160,12 @@ export class ElearningService {
       throw new NotFoundException(`Elearning with ID ${id} not found`);
     }
 
-    this.repo.merge(example, { content, title });
+    const subject = await this.repoSubject.findOne({
+      where: { id: subjectId },
+    });
+
+    this.repo.merge(example, { content, title, subject,topic:topicId });
+    console.log(example);
 
     await this.repo.update(id, example);
 

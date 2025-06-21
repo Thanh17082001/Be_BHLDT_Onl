@@ -10,7 +10,7 @@ export function normalizeString(fileName) {
     const extension = parts[parts.length - 1];
 
     const normalizedName = removeSpaces(removeVietnameseTones(name));
-
+  
     return `${normalizedName}.${extension}`;
 }
 

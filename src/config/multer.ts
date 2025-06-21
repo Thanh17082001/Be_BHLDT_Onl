@@ -3,6 +3,8 @@ import * as path from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { randomNameFile } from 'src/utils/random-name';
 import { normalizeString } from 'src/utils/normalize-string';
+import { removeVietnameseTones } from 'src/utils/generate-username';
+import { randomBytes } from 'crypto';
 
 export const storage = (folder: string, isSplit: boolean = false) =>
     diskStorage({
@@ -34,9 +36,19 @@ export const storage = (folder: string, isSplit: boolean = false) =>
             cb(null, uploadPath); // Trả về đường dẫn lưu trữ
         },
         filename: (req, file, cb) => {
-            // Tạo tên tệp ngẫu nhiên
-            const randomName = randomNameFile(normalizeString(file.originalname));
-            cb(null, `${randomName}`);
+            // let decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+            // // Tạo tên tệp ngẫu nhiên
+            // const randomName = randomNameFile(normalizeString(decodedOriginalName));
+            // console.log(randomName);
+            // cb(null, `${randomName}`);
+
+            const timestamp = Date.now();
+            const ext = path.extname(file.originalname);
+            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+            const baseName = normalizeString(path.basename(originalName, ext));
+
+            const finalName = `${randomNameFile('')}${ext}`;
+            cb(null, finalName);
         },
     });
 

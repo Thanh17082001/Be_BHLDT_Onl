@@ -37,10 +37,10 @@ async function bootstrap() {
     origin: (origin, callback) => {
       console.log(origin);
       if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
-        console.log('thiseashlkajshdlkhj asad');
+        console.log('qua mid này');
         callback(null, true);
       } else {
-        console.log('álkdjhaslkdjahsldkjaslkdj');
+        console.log('chưa qua');
         callback(new Error('Not allowed by CORS'));
       }
     },

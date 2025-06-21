@@ -153,19 +153,11 @@ export class ElearningThemeService {
     if (!example) {
       throw new NotFoundException(`ElearningTheme with ID ${id} not found`);
     }
-  //   if (isFile) {
-  //     const oldPath = pathLib.join(__dirname, '..', '..', example.path);
-  //     if (existsSync(oldPath) && example.path) {
-  //       unlinkSync(oldPath);
-  //     }
-  // }
       
     
-   
-
-
-
+  
     this.repo.merge(example, { title, content, path });
+    console.log(example);
 
     await this.repo.update(id, example);
 

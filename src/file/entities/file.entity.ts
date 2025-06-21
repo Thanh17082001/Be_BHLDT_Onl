@@ -46,6 +46,6 @@ export class File extends BaseWithCreatedBy {
     @OneToMany(() => Image, (image) => image.file, { cascade: true, onDelete: 'CASCADE' })
     images: Image[]
 
-    @Column({ nullable: true })
+    @Column({ default: true })
     isGdGroup: boolean = true;
 }

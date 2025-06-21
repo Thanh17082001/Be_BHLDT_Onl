@@ -21,13 +21,17 @@ export class ElearningVideoController {
       @UseInterceptors(FileInterceptor('file', { storage: storage('elearning', true), ...multerOptions }))
   create(@UploadedFile() file: Express.Multer.File, @Body() createElearningVideoDto: CreateElearningVideoDto, @Req() request: Request) {
     const user: User = request['user'] ?? null;
-    createElearningVideoDto.path = `public/video/${file.filename}`;
     if (file.mimetype == 'video/mp4') {
       createElearningVideoDto.minetype = 'video'
+      createElearningVideoDto.path = `public/elearning/video/${file.filename}`;
+
     }
     else {
       createElearningVideoDto.minetype = 'image'
+      createElearningVideoDto.path = `public/elearning/image/${file.filename}`;
+
     }
+    console.log('tieas;lkda;slkd');
     return this.elearningVideoService.create(createElearningVideoDto, user);
   }
 
