@@ -212,6 +212,7 @@ export class QuestionService {
     }
 
     this.repo.merge(example, { content, score });
+    console.log(example);
 
     await this.repo.update(id, example);
 
