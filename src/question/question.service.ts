@@ -5,6 +5,7 @@ import {
   HttpException,
   Injectable,
   NotFoundException,
+  Logger
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Not, Repository } from 'typeorm';
@@ -27,6 +28,7 @@ import { RandomQuestionDto } from './dto/randoom-question.dto';
 
 @Injectable()
 export class QuestionService {
+  private readonly logger = new Logger(QuestionService.name)
   constructor(
     @InjectRepository(Question) private repo: Repository<Question>,
     @InjectRepository(Question) private repoQuestion: Repository<Question>,
@@ -37,6 +39,7 @@ export class QuestionService {
     @InjectRepository(TypeQuestion) private repoTypeQuestion: Repository<TypeQuestion>,
     @InjectRepository(Level) private repoLevel: Repository<Level>,
     private readonly answerService: AnswerService,
+
   ) { }
   async create(
     createQuestionDto: CreateQuestionDto,
@@ -212,7 +215,6 @@ export class QuestionService {
     }
 
     this.repo.merge(example, { content, score });
-    console.log(example);
 
     await this.repo.update(id, example);
 
@@ -275,6 +277,127 @@ export class QuestionService {
     return result;
   }
 
+  async createQuestionBySaathi(
+    book: string,
+    page: number,
+    grade: string,
+    subject: string,
+    imageInput?: { type: 'url' | 'base64'; data: string }
+  ) {
+    try {
+      this.logger.debug(
+        `Request Saathi API with: book=${book}, page=${page}, grade=${grade}, subject=${subject}, imageType=${imageInput?.type || 'none'}`,
+      );
+
+      const saathiKey = process.env.SAATHI_KEY;
+      if (!saathiKey) {
+        console.log(
+          book, page, grade, subject, imageInput
+        )
+        throw new HttpException('SAATHI_KEY is missing in environment variables', 500);
+      }
+
+      const body: any = {
+        user_input: `Tạo bộ câu hỏi trắc nghiệm cho sách ${book}, trang ${page}, lớp ${grade}, môn ${subject}.`,
+        system_input: 'Bạn là một AI chuyên tạo câu hỏi kiểm tra kiến thức.',
+        saathi_key: saathiKey,
+        response_format: {
+          type: 'object',
+          properties: {
+            questions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  content: { type: 'string' },          // Question.content
+                  score: { type: 'number' },            // Question.score
+                  numberOfAnswers: { type: 'number' },  // Question.numberOfAnswers
+                  answers: {                             // list answer objects
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        content: { type: 'string' },    // Answer.content
+                        isCorrect: { type: 'boolean' }  // Answer.isCorrect
+                      },
+                      required: ['content', 'isCorrect']
+                    }
+                  },
+                  // optional metadata as names (AI trả label, backend sẽ map)
+                  subjectName: { type: 'string' },
+                  partName: { type: 'string' },
+                  topicName: { type: 'string' },
+                  typeQuestionName: { type: 'string' },
+                  levelName: { type: 'string' },
+                  schoolName: { type: 'string' },
+
+                  // optional image
+                  image: { type: 'string' },
+
+                  // optional external id from Saathi
+                  saathiId: { type: 'string' }
+                },
+                required: ['content', 'answers']
+              }
+            }
+          },
+          required: ['questions']
+        },
+        stream: false,
+        thinking: true,
+      };
+
+      // 👇 Thêm image nếu có
+      if (imageInput) {
+        if (imageInput.type === 'url') {
+          body.image = {
+            type: 'image_url',
+            image_url: { url: imageInput.data },
+          };
+        } else if (imageInput.type === 'base64') {
+          body.image = {
+            type: 'image_url',
+            base64: imageInput.data,
+          };
+        }
+      }
+
+      const response = await fetch('https://saathi-core-ai-prod.taghiveapi.com/saathi_lm/inference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        this.logger.error(`Saathi API error: ${response.status} - ${errText}`);
+        throw new HttpException(`Saathi API error: ${response.status}`, response.status);
+      }
+
+      const data = await response.json();
+      this.logger.debug(`Saathi raw response: ${JSON.stringify(data)}`);
+
+      if (data.error) {
+        throw new HttpException(`Saathi error: ${data.error}`, 500);
+      }
+      if (!data.result) {
+        throw new HttpException('Empty result from Saathi', 500);
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(data.result);
+      } catch (e) {
+        this.logger.error(`JSON parse failed. Raw result: ${data.result}`);
+        throw new HttpException('Invalid JSON result from Saathi', 500);
+      }
+
+      return parsed.questions;
+    } catch (err) {
+      this.logger.error(`Error while calling Saathi: ${err.message}`, err.stack);
+      throw new HttpException(err.message || 'Unexpected error', 500);
+    }
+  }
 
 
 }

@@ -18,6 +18,7 @@ import * as XLSX from 'xlsx';
 import { LevelService } from 'src/level/level.service';
 import { PartService } from 'src/part/part.service';
 import { RandomQuestionDto } from './dto/randoom-question.dto';
+import { Public } from 'src/auth/auth.decorator';
 
 
 @Controller('Question')
@@ -36,7 +37,33 @@ export class QuestionController {
     const user: User = request['user'] ?? null;
     return this.QuestionService.create(createQuestionDto, user);
   }
+  @Post('createquesbysaathi')
+  @Public()
+  async createQuesBySaathi(@Body() body: any) {
+    const { book, page, grade, subject, imageType, imageData } = body;
 
+    if (!book || !page || !grade || !subject) {
+      return { success: false, message: 'Thiếu tham số (book, page, grade, subject)' };
+    }
+
+    let imageInput: { type: 'url' | 'base64'; data: string } | undefined;
+
+    if (imageType && imageData) {
+      if (imageType === 'url' || imageType === 'base64') {
+        imageInput = { type: imageType, data: imageData };
+      }
+    }
+
+    const questions = await this.QuestionService.createQuestionBySaathi(
+      book,
+      parseInt(page, 10),
+      grade,
+      subject,
+      imageInput,
+    );
+
+    return { success: true, questions };
+  }
   @Post('import-excel')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))

@@ -38,8 +38,7 @@ import { LessonPlanModule } from './lesson-plan/lesson-plan.module';
 import { GameQuestionModule } from './game-question/game-question.module';
 import { GameModule } from './game/game.module';
 import { ElearningModule } from './elearning/elearning.module';
-import { ElearningVideoModule } from './elearning-video/elearning-video.module';
-import { ElearningThemeModule } from './elearning-theme/elearning-theme.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -107,8 +106,7 @@ import { ElearningThemeModule } from './elearning-theme/elearning-theme.module';
     GameQuestionModule,
     GameModule,
     ElearningModule,
-    ElearningVideoModule,
-    ElearningThemeModule
+    MailModule
   ],
   controllers: [],
   providers: [

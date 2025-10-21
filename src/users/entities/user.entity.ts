@@ -17,7 +17,7 @@ export class User extends BaseUserEntity {
     email?: string;
     @Column({ default: '' })
     phone?: string;
-    @Column({ default: 'Giáo viên', enum:Role })
+    @Column({ default: 'Giáo viên', enum: Role })
     role?: string;
     @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
     createdBy?: User
@@ -36,5 +36,8 @@ export class User extends BaseUserEntity {
     subjects: Subject[];
 
     @Column({ default: false })
-    isAdmin:boolean; // true: admin, false: user
+    isAdmin: boolean; // true: admin, false: user
+
+    @Column({ nullable: true, type: 'text' })
+    refreshToken: string | null;
 }

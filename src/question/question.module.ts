@@ -1,4 +1,4 @@
-import { TypeQuestionModule } from './../type-question/type-question.module';
+import { TypeQuestionModule } from '../type-question/type-question.module';
 import { forwardRef, Module } from '@nestjs/common';
 import { QuestionService } from './question.service';
 import { QuestionController } from './question.controller';

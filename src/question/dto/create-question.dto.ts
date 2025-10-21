@@ -1,4 +1,4 @@
-import { Answer } from './../../answer/entities/answer.entity';
+import { Answer } from '../../answer/entities/answer.entity';
 import { ApiProperty, OmitType } from "@nestjs/swagger";
 import { IsArray, IsNumber, IsOptional, IsString } from "class-validator";
 import { CreateAnswerDto } from 'src/answer/dto/create-answer.dto';
