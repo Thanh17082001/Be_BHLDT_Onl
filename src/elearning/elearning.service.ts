@@ -23,6 +23,19 @@ import { Question } from 'src/question/entities/question.entity';
 import { Elearning } from './entities/elearning.entity';
 import { Subject } from 'src/subjects/entities/subject.entity';
 import { Topic } from 'src/topics/entities/topic.entity';
+import { join } from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as nodemailer from 'nodemailer';
+import PDFDocument = require('pdfkit');
+import * as fabric from 'fabric/node';
+import { JSDOM } from 'jsdom';
+const { window } = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+(global as any).window = window;
+(global as any).document = window.document;
+(global as any).HTMLCanvasElement = window.HTMLCanvasElement;
+(global as any).HTMLImageElement = window.HTMLImageElement;
+
 
 @Injectable()
 export class ElearningService {
@@ -31,13 +44,14 @@ export class ElearningService {
     @InjectRepository(School) private repoSchool: Repository<School>,
     @InjectRepository(Subject) private repoSubject: Repository<Subject>,
     @InjectRepository(Topic) private repoTopic: Repository<Topic>,
+    @InjectRepository(User) private repoUser: Repository<User>,
   ) { }
   async create(
     createElearningDto: CreateElearningDto,
     user: User,
   ): Promise<Elearning> {
-    const { content, title ,subjectId, topicId} = createElearningDto;
-
+    const { content, title, subjectId, topicId } = createElearningDto;
+    console.log(content, title, subjectId, topicId)
     createElearningDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
       where: { id: createElearningDto.schoolId },
@@ -45,7 +59,7 @@ export class ElearningService {
     const subject = await this.repoSubject.findOne({
       where: { id: subjectId },
     });
-    
+
     if (!subject) {
       throw new NotFoundException(`Không tìm thấy môn học`);
     }
@@ -67,10 +81,12 @@ export class ElearningService {
     query: Partial<Elearning>,
     user: User,
   ): Promise<PageDto<Elearning>> {
-    const queryBuilder = this.repo
-      .createQueryBuilder('Elearning')
-      .leftJoinAndSelect('Elearning.school', 'school') // Lấy thông tin trường
-      .leftJoinAndSelect('Elearning.createdBy', 'createdBy'); // Lấy danh sách giáo viên phụ trách môn học
+    try {
+      const queryBuilder = this.repo
+      .createQueryBuilder('elearning')
+      .leftJoinAndSelect('elearning.school', 'school')
+      .leftJoinAndSelect('elearning.createdBy', 'createdBy')
+      .leftJoinAndSelect('elearning.subject', 'subject');
 
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
@@ -79,16 +95,16 @@ export class ElearningService {
       queryBuilder.andWhere(
         new Brackets((qb) => {
           if (user.role === Role.TEACHER) {
-            const subjectIds = user.subjects?.map((subject) => subject.id) || [];
+            const subjectIds = user.subjects?.map((s) => s.id) || [];
             if (subjectIds.length > 0) {
-              qb.where('subject.id IN (:...subjectIds)', { subjectIds })
-                .orWhere(
-                  '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
-                  {
-                    isAdmin: true,
-                    schoolTypesQuery,
-                  },
-                );
+              console.log(11111)
+              qb.where(
+                new Brackets((q) =>
+                  q
+                    .where('subject.id IN (:...subjectIds)', { subjectIds })
+                    .andWhere('elearning.created_by = :created_by', { created_by: user.id }),
+                ),
+              );
             }
           } else if (user.role === Role.PRINCIPAL) {
             qb.where('school.id = :schoolId', { schoolId: user.school.id })
@@ -104,26 +120,26 @@ export class ElearningService {
           }
         }),
       );
-
-   }
+    }
 
     // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
     if (!!query && Object.keys(query).length > 0) {
       Object.keys(query).forEach((key) => {
         if (key && !pagination.includes(key)) {
           console.log(query);
-          queryBuilder.andWhere(`Elearning.${key} = :${key}`, {
+          queryBuilder.andWhere(`elearning.${key} = :${key}`, {
             [key]: query[key],
           });
         }
       });
     }
 
+console.log(2222);
 
     // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
     if (search) {
       queryBuilder.andWhere(
-        `LOWER(unaccent("Elearning".name)) ILIKE LOWER(unaccent(:search))`,
+        `LOWER(unaccent("elearning".name)) ILIKE LOWER(unaccent(:search))`,
         {
           search: `%${search}%`,
         },
@@ -131,7 +147,7 @@ export class ElearningService {
     }
 
     // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('Elearning.createdAt', order).skip(skip).take(take);
+    queryBuilder.orderBy('elearning.createdAt', order).skip(skip).take(take);
 
     const itemCount = await queryBuilder.getCount();
     const { entities } = await queryBuilder.getRawAndEntities();
@@ -140,7 +156,10 @@ export class ElearningService {
       entities,
       new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
     );
-  }
+    } catch (error) {
+      console.log(error)
+    }
+  } 
 
   async findOne(id: number): Promise<ItemDto<Elearning>> {
     const example = await this.repo.findOne({ where: { id } });
@@ -151,7 +170,7 @@ export class ElearningService {
   }
 
   async update(id: number, updateElearningDto: UpdateElearningDto) {
-    const { content, title ,subjectId, topicId} = updateElearningDto;
+    const { content, title, subjectId, topicId } = updateElearningDto;
 
 
     const example: Elearning = await this.repo.findOne({ where: { id }, relations: ['createdBy', 'school'] });
@@ -164,7 +183,7 @@ export class ElearningService {
       where: { id: subjectId },
     });
 
-    this.repo.merge(example, { content, title, subject,topic:topicId });
+    this.repo.merge(example, { content, title, subject, topic: topicId });
     console.log(example);
 
     await this.repo.update(id, example);
@@ -188,5 +207,85 @@ export class ElearningService {
     }
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));
+  }
+  async sendToEmail(elearningId: number, email: string, userName: string) {
+    // 1. Lấy Elearning gốc
+    const elearning = await this.repo.findOne({
+      where: { id: elearningId },
+      relations: ['createdBy', 'school', 'subject'],
+    });
+    if (!elearning) throw new NotFoundException('Elearning not found');
+
+    // 2. Lấy user
+    const user = await this.repoUser.findOne({ where: { username: userName } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // 3. Tạo thư mục PDF
+    const pdfDir = join(__dirname, '../../public/pdf');
+    if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+
+    // 4. Tạo file PDF
+    const pdfPath = join(pdfDir, `elearning-${elearning.id}-${Date.now()}.pdf`);
+    const doc = new PDFDocument({ autoFirstPage: false });
+    const stream = fs.createWriteStream(pdfPath);
+    doc.pipe(stream);
+
+    // 5. Chuyển content sang JSON
+    const content =
+      typeof elearning.content === 'string'
+        ? JSON.parse(elearning.content)
+        : elearning.content;
+
+    // 6. Vẽ từng trang
+    for (const key of Object.keys(content)) {
+      const { canvasJSON } = content[key];
+      const canvas = new fabric.StaticCanvas(null, { width: 900, height: 550 });
+
+      await new Promise<void>((resolve) => {
+        canvas.loadFromJSON(canvasJSON, () => {
+          const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 });
+          const imgBuffer = Buffer.from(dataUrl.split(',')[1], 'base64');
+          doc.addPage({ size: [900, 550] });
+          doc.image(imgBuffer, 0, 0, { width: 900, height: 550 });
+          doc.text(`Trang ${key}`, 20, 20);
+          resolve();
+        });
+      });
+    }
+
+    doc.end();
+    await new Promise<void>((resolve) => {
+      stream.on('finish', () => resolve());
+    });
+
+    // 7. Clone elearning
+    const cloned = this.repo.create({
+      title: `${elearning.title} - Bản sao`,
+      content: elearning.content,
+      school: elearning.school,
+      subject: elearning.subject,
+      topic: elearning.topic,
+      createdBy: user,
+    });
+    await this.repo.save(cloned);
+
+    // 8. Gửi mail
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'hoangconghieu1903@gmail.com',
+        pass: 'ulsxqjtkonzpvnqi',
+      },
+    });
+
+    await transporter.sendMail({
+      from: `${email}`,
+      to: email,
+      subject: `Tài liệu Elearning: ${elearning.title}`,
+      text: 'Đính kèm là file PDF nội dung bài học của bạn.',
+      attachments: [{ filename: `${elearning.title}.pdf`, path: pdfPath }],
+    });
+
+    return { message: 'Đã gửi email thành công', pdfPath };
   }
 }

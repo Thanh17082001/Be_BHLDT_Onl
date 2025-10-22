@@ -18,6 +18,16 @@ import { Public } from 'src/auth/auth.decorator';
 export class ElearningController {
   constructor(private readonly ElearningService: ElearningService) { }
 
+  @Post('send-to-email')
+  @Public()
+  async sendToEmail(
+    @Body('elearningId') elearningId: number,
+    @Body('email') email: string,
+    @Body('userName') userName: string,
+  ) {
+    return this.ElearningService.sendToEmail(elearningId, email, userName);
+  }
+
   @Post()
   // @Roles(Role.TEACHER)
   create(@Body() createElearningDto: CreateElearningDto, @Req() request: Request) {

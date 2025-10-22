@@ -35,6 +35,7 @@ export class LessonPlanService {
   ) {}
 
   async create(createLessonPlanDto: CreateLessonPlanDto, user) {
+    console.log(1)
     createLessonPlanDto.createdBy = user;
     createLessonPlanDto.schoolId = user?.school?.id;
     const school = await this.repoSchool.findOne({
