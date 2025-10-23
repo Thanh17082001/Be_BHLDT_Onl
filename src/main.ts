@@ -112,7 +112,6 @@ async function bootstrap() {
   await app.listen(PORT, () => {
     console.log(`Server is  running at http://localhost:${PORT}/api`);
   });
-
   const dataSource = app.get(DataSource);
   if (dataSource.isInitialized) {
     console.log('Database is already connected!', configService.get<string>('database.database'));

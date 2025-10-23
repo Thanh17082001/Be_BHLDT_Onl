@@ -46,35 +46,77 @@ export class ElearningService {
     @InjectRepository(Topic) private repoTopic: Repository<Topic>,
     @InjectRepository(User) private repoUser: Repository<User>,
   ) { }
+  // async create(
+  //   createElearningDto: CreateElearningDto,
+  //   user: User,
+  // ): Promise<Elearning> {
+  //   const { content, title, subjectId, topicId } = createElearningDto;
+  //   console.log(content, title, subjectId, topicId)
+  //   createElearningDto.schoolId = user?.school?.id;
+  //   const school = await this.repoSchool.findOne({
+  //     where: { id: createElearningDto.schoolId },
+  //   });
+  //   const subject = await this.repoSubject.findOne({
+  //     where: { id: subjectId },
+  //   });
+
+  //   if (!subject) {
+  //     throw new NotFoundException(`Không tìm thấy môn học`);
+  //   }
+
+
+  //   const newElearning = this.repo.create({
+  //     content,
+  //     title,
+  //     subject: subject,
+  //     topic: topicId,
+  //     createdBy: user,
+  //     school: school,
+  //   });
+  //   return await this.repo.save(newElearning);
+  // }
+
   async create(
     createElearningDto: CreateElearningDto,
     user: User,
   ): Promise<Elearning> {
-    const { content, title, subjectId, topicId } = createElearningDto;
-    console.log(content, title, subjectId, topicId)
-    createElearningDto.schoolId = user?.school?.id;
-    const school = await this.repoSchool.findOne({
-      where: { id: createElearningDto.schoolId },
-    });
-    const subject = await this.repoSubject.findOne({
-      where: { id: subjectId },
-    });
+    const { content, title, subjectId, topicId, draftGroupId } = createElearningDto;
 
-    if (!subject) {
-      throw new NotFoundException(`Không tìm thấy môn học`);
+    // Lấy school và subject
+    const school = await this.repoSchool.findOne({ where: { id: user?.school?.id } });
+    const subject = await this.repoSubject.findOne({ where: { id: subjectId } });
+    if (!subject) throw new NotFoundException('Không tìm thấy môn học');
+
+    let finalDraftGroupId: number;
+
+    if (draftGroupId) {
+      // Nếu frontend gửi draftGroupId, dùng luôn
+      finalDraftGroupId = draftGroupId;
+    } else {
+      // Nếu không, tự sinh draftGroupId mới không trùng
+      // Lấy draftGroupId lớn nhất trong DB
+      const lastDraft = await this.repo
+        .createQueryBuilder('elearning')
+        .select('MAX(elearning.draftGroupId)', 'max')
+        .getRawOne();
+
+      finalDraftGroupId = lastDraft?.max ? Number(lastDraft.max) + 1 : 1;
     }
 
-
+    // Tạo bản ghi mới
     const newElearning = this.repo.create({
       content,
       title,
-      subject: subject,
+      subject,
       topic: topicId,
       createdBy: user,
-      school: school,
+      school,
+      draftGroupId: finalDraftGroupId,
     });
+
     return await this.repo.save(newElearning);
   }
+
 
   async findAll(
     pageOptions: PageOptionsDto,
@@ -83,83 +125,83 @@ export class ElearningService {
   ): Promise<PageDto<Elearning>> {
     try {
       const queryBuilder = this.repo
-      .createQueryBuilder('elearning')
-      .leftJoinAndSelect('elearning.school', 'school')
-      .leftJoinAndSelect('elearning.createdBy', 'createdBy')
-      .leftJoinAndSelect('elearning.subject', 'subject');
+        .createQueryBuilder('elearning')
+        .leftJoinAndSelect('elearning.school', 'school')
+        .leftJoinAndSelect('elearning.createdBy', 'createdBy')
+        .leftJoinAndSelect('elearning.subject', 'subject');
 
-    const { page, take, skip, order, search } = pageOptions;
-    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
-    if (user) {
-      const schoolTypesQuery = schoolTypes(user);
-      queryBuilder.andWhere(
-        new Brackets((qb) => {
-          if (user.role === Role.TEACHER) {
-            const subjectIds = user.subjects?.map((s) => s.id) || [];
-            if (subjectIds.length > 0) {
-              console.log(11111)
-              qb.where(
-                new Brackets((q) =>
-                  q
-                    .where('subject.id IN (:...subjectIds)', { subjectIds })
-                    .andWhere('elearning.created_by = :created_by', { created_by: user.id }),
-                ),
-              );
+      const { page, take, skip, order, search } = pageOptions;
+      const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+      if (user) {
+        const schoolTypesQuery = schoolTypes(user);
+        queryBuilder.andWhere(
+          new Brackets((qb) => {
+            if (user.role === Role.TEACHER) {
+              const subjectIds = user.subjects?.map((s) => s.id) || [];
+              if (subjectIds.length > 0) {
+                console.log(11111)
+                qb.where(
+                  new Brackets((q) =>
+                    q
+                      .where('subject.id IN (:...subjectIds)', { subjectIds })
+                      .andWhere('elearning.created_by = :created_by', { created_by: user.id }),
+                  ),
+                );
+              }
+            } else if (user.role === Role.PRINCIPAL) {
+              qb.where('school.id = :schoolId', { schoolId: user.school.id })
+                .orWhere(
+                  '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
+                  {
+                    isAdmin: true,
+                    schoolTypesQuery,
+                  },
+                );
+            } else if (user.role === Role.ADMIN) {
+              qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
             }
-          } else if (user.role === Role.PRINCIPAL) {
-            qb.where('school.id = :schoolId', { schoolId: user.school.id })
-              .orWhere(
-                '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
-                {
-                  isAdmin: true,
-                  schoolTypesQuery,
-                },
-              );
-          } else if (user.role === Role.ADMIN) {
-            qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
+          }),
+        );
+      }
+
+      // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
+      if (!!query && Object.keys(query).length > 0) {
+        Object.keys(query).forEach((key) => {
+          if (key && !pagination.includes(key)) {
+            console.log(query);
+            queryBuilder.andWhere(`elearning.${key} = :${key}`, {
+              [key]: query[key],
+            });
           }
-        }),
+        });
+      }
+
+      console.log(2222);
+
+      // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
+      if (search) {
+        queryBuilder.andWhere(
+          `LOWER(unaccent("elearning".name)) ILIKE LOWER(unaccent(:search))`,
+          {
+            search: `%${search}%`,
+          },
+        );
+      }
+
+      // 🎯 Phân trang và sắp xếp
+      queryBuilder.orderBy('elearning.createdAt', order).skip(skip).take(take);
+
+      const itemCount = await queryBuilder.getCount();
+      const { entities } = await queryBuilder.getRawAndEntities();
+
+      return new PageDto(
+        entities,
+        new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
       );
-    }
-
-    // 🎯 Lọc theo điều kiện tìm kiếm (bỏ qua các tham số phân trang)
-    if (!!query && Object.keys(query).length > 0) {
-      Object.keys(query).forEach((key) => {
-        if (key && !pagination.includes(key)) {
-          console.log(query);
-          queryBuilder.andWhere(`elearning.${key} = :${key}`, {
-            [key]: query[key],
-          });
-        }
-      });
-    }
-
-console.log(2222);
-
-    // 🎯 Tìm kiếm theo tên môn học (bỏ dấu)
-    if (search) {
-      queryBuilder.andWhere(
-        `LOWER(unaccent("elearning".name)) ILIKE LOWER(unaccent(:search))`,
-        {
-          search: `%${search}%`,
-        },
-      );
-    }
-
-    // 🎯 Phân trang và sắp xếp
-    queryBuilder.orderBy('elearning.createdAt', order).skip(skip).take(take);
-
-    const itemCount = await queryBuilder.getCount();
-    const { entities } = await queryBuilder.getRawAndEntities();
-
-    return new PageDto(
-      entities,
-      new PageMetaDto({ pageOptionsDto: pageOptions, itemCount }),
-    );
     } catch (error) {
       console.log(error)
     }
-  } 
+  }
 
   async findOne(id: number): Promise<ItemDto<Elearning>> {
     const example = await this.repo.findOne({ where: { id } });
@@ -287,5 +329,27 @@ console.log(2222);
     });
 
     return { message: 'Đã gửi email thành công', pdfPath };
+  }
+  async autoSave(createElearningDto: CreateElearningDto, user: User): Promise<Elearning> {
+    const { draftGroupId } = createElearningDto;
+
+    // Nếu draftGroupId được gửi, lấy các bản nháp hiện tại
+    let currentDrafts: Elearning[] = [];
+    if (draftGroupId) {
+      currentDrafts = await this.repo.find({
+        where: { draftGroupId, createdBy: { id: user.id } },
+        order: { createdAt: 'ASC' }, // sắp xếp từ cũ nhất đến mới nhất
+      });
+    }
+
+    // Nếu đã có >=5 bản nháp, xóa bản cũ nhất
+    if (currentDrafts.length >= 5) {
+      await this.repo.remove(currentDrafts[0]);
+    }
+
+    // Tạo bản mới bằng hàm create
+    const newDraft = await this.create(createElearningDto, user);
+
+    return newDraft;
   }
 }

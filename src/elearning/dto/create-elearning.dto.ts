@@ -1,5 +1,5 @@
 import { ApiProperty, OmitType } from "@nestjs/swagger";
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { BaseDto } from "src/common/dto/base.dto";
 
 export class CreateElearningDto extends OmitType(BaseDto, [] as const) {
@@ -22,4 +22,8 @@ export class CreateElearningDto extends OmitType(BaseDto, [] as const) {
     @IsNotEmpty()
     topicId: number;
     
+    @ApiProperty({ required: false})
+    @IsNumber()
+    @IsOptional()
+    draftGroupId?: number;
 }

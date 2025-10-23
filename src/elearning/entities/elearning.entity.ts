@@ -13,12 +13,15 @@ export class Elearning extends BaseWithCreatedBy {
     @ManyToOne(() => School, { nullable: true })
     @JoinColumn({ name: "schoolId" })
     school?: School = null;
-    
+
     @ManyToOne(() => Subject, { nullable: true })
     @JoinColumn({ name: "subjectId" })
     subject?: Topic = null; @ManyToOne(() => School, { nullable: true })
-        
+
     @Column({ nullable: true })
     topic?: number = null;
+
+    @Column({ nullable: true })
+    draftGroupId?: number;
 
 }
