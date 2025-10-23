@@ -39,6 +39,7 @@ import { GameQuestionModule } from './game-question/game-question.module';
 import { GameModule } from './game/game.module';
 import { ElearningModule } from './elearning/elearning.module';
 import { MailModule } from './mail/mail.module';
+import { ForumCommentModule } from './forum-comment/forum-comment.module';
 
 @Module({
   imports: [
@@ -106,7 +107,8 @@ import { MailModule } from './mail/mail.module';
     GameQuestionModule,
     GameModule,
     ElearningModule,
-    MailModule
+    MailModule,
+    ForumCommentModule
   ],
   controllers: [],
   providers: [

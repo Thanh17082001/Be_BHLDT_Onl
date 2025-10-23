@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, UseInterceptors, UploadedFile, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, UseInterceptors, UploadedFile, UseGuards, Req, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -17,6 +17,9 @@ import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
 import { CreateUserAdminDto } from './dto/create-admin.dto';
 import { School } from 'src/schools/entities/school.entity';
+import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
+import { User } from './entities/user.entity';
+import { PageDto } from 'src/common/pagination/page.dto';
 
 @Controller('user')
 @UseGuards(RolesGuard)
@@ -100,9 +103,9 @@ export class UsersController {
     async create(@Body() createUserDto: CreateUserAdminDto) {
         const school: any = await this.schoolService.findByTypeSchoolIsAdmin(createUserDto.schoolType);
         const schoolType = {
-            'Tiểu học':'TH',
-            'THCS':'THCS',
-            'THPT':'THPT',
+            'Tiểu học': 'TH',
+            'THCS': 'THCS',
+            'THPT': 'THPT',
         }
         const userDto: CreateUserDto = {
             fullName: `Quản Trị Viên ${schoolType[createUserDto.schoolType]}`,
@@ -116,8 +119,15 @@ export class UsersController {
         };
         const user = await this.userService.create(userDto);
         return user;
+    } 
+    @Get()
+    @Public()
+    async findAll(
+        @Query() pageOptions: PageOptionsDto,
+        @Query() query: Partial<User>,
+    ): Promise<PageDto<User>> {
+        return this.userService.findAll(pageOptions, query);
     }
-
     @Post('change-password')
     async changePassword(@Body() dto: ChangePassDto) {
         const { userId, password, newPassword } = dto;

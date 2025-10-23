@@ -128,7 +128,9 @@ export class ElearningService {
         .createQueryBuilder('elearning')
         .leftJoinAndSelect('elearning.school', 'school')
         .leftJoinAndSelect('elearning.createdBy', 'createdBy')
-        .leftJoinAndSelect('elearning.subject', 'subject');
+        .leftJoinAndSelect('elearning.subject', 'subject')
+        .leftJoinAndSelect('elearning.comments', 'comments')
+        .leftJoinAndSelect('comments.createdBy', 'commentUser');
 
       const { page, take, skip, order, search } = pageOptions;
       const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
@@ -137,17 +139,24 @@ export class ElearningService {
         queryBuilder.andWhere(
           new Brackets((qb) => {
             if (user.role === Role.TEACHER) {
+              console.log('giáo viên')
               const subjectIds = user.subjects?.map((s) => s.id) || [];
-              if (subjectIds.length > 0) {
-                console.log(11111)
-                qb.where(
-                  new Brackets((q) =>
-                    q
-                      .where('subject.id IN (:...subjectIds)', { subjectIds })
-                      .andWhere('elearning.created_by = :created_by', { created_by: user.id }),
-                  ),
+
+              qb.where(new Brackets((q) => {
+                // Các bài giảng thuộc môn mà giáo viên phụ trách
+                // if (subjectIds.length > 0) {
+                //   q.where('subject.id IN (:...subjectIds)', { subjectIds });
+                // }
+
+                // Hoặc bài giảng do chính họ tạo
+                q.orWhere('elearning.created_by = :created_by', { created_by: user.id });
+
+                // Hoặc bài giảng do quản trị viên của cùng trường tạo ra
+                q.orWhere(
+                  '(createdBy.role = :adminRole AND school.id = :schoolId)',
+                  { adminRole: Role.ADMIN, schoolId: user.school.id },
                 );
-              }
+              }));
             } else if (user.role === Role.PRINCIPAL) {
               qb.where('school.id = :schoolId', { schoolId: user.school.id })
                 .orWhere(
@@ -158,9 +167,10 @@ export class ElearningService {
                   },
                 );
             } else if (user.role === Role.ADMIN) {
+              console.log('admin')
               qb.where('school.schoolType IN (:...schoolTypesQuery)', { schoolTypesQuery });
             }
-          }),
+          }), 
         );
       }
 
@@ -351,5 +361,12 @@ export class ElearningService {
     const newDraft = await this.create(createElearningDto, user);
 
     return newDraft;
+  }
+  async findByDraftGroupId(draftGroupId: number): Promise<Elearning[]> {
+    return this.repo.find({
+      where: { draftGroupId },
+      relations: ['createdBy', 'school', 'subject'],
+      order: { id: 'ASC' },
+    });
   }
 }

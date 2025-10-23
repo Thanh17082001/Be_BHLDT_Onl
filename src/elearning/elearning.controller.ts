@@ -2,7 +2,7 @@ import { ElearningService } from './elearning.service';
 import { CreateElearningDto } from './dto/create-elearning.dto';
 import { UpdateElearningDto } from './dto/update-elearning.dto';
 
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
@@ -41,7 +41,12 @@ export class ElearningController {
     const user = request['user'] ?? null;
     return this.ElearningService.findAll(pageOptionDto, query, user);
   }
-
+  @Get('draftgroup/:id')
+  @Public()
+  async findByDraftGroupId(
+    @Param('id') id: string) {
+    return this.ElearningService.findByDraftGroupId(+id);
+  }
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ElearningService.findOne(+id);
