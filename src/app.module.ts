@@ -42,6 +42,7 @@ import { MailModule } from './mail/mail.module';
 import { ForumCommentModule } from './forum-comment/forum-comment.module';
 import { ElearningVideoModule } from './elearning-video/elearning-video.module';
 import { ElearningThemeModule } from './elearning-theme/elearning-theme.module';
+import { ElearningVersionModule } from './elearning-version/elearning-version.module';
 
 @Module({
   imports: [
@@ -112,7 +113,8 @@ import { ElearningThemeModule } from './elearning-theme/elearning-theme.module';
     ElearningVideoModule,
     ElearningThemeModule,
     MailModule,
-    ForumCommentModule
+    ForumCommentModule,
+    ElearningVersionModule
   ],
   controllers: [],
   providers: [

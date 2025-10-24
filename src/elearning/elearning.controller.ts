@@ -10,13 +10,18 @@ import { User } from 'src/users/entities/user.entity';
 import { RolesGuard } from 'src/role/role.guard';
 import { Elearning } from './entities/elearning.entity';
 import { Public } from 'src/auth/auth.decorator';
+import { AutosaveElearningDto } from './dto/autosave-elearning. copy';
+import { ElearningVersion } from 'src/elearning-version/entities/elearning-version.entity';
 
 @Controller('elearning')
 @UseGuards(RolesGuard)
 @Roles(Role.TEACHER)
 
 export class ElearningController {
-  constructor(private readonly ElearningService: ElearningService) { }
+  constructor(
+    private readonly ElearningService: ElearningService,
+    // private readonly ElearningversionsService: ElearningVersion,
+  ) { }
 
   @Post('send-to-email')
   @Public()
@@ -30,41 +35,41 @@ export class ElearningController {
   @Post('auto-save')
   @Roles(Role.TEACHER)
   async autoSave(
-    @Body() createElearningDto: CreateElearningDto,
+    @Body() createElearningDto: AutosaveElearningDto,
     @Req() request: Request
   ) {
     const user: User = request['user'] ?? null;
     return this.ElearningService.autoSave(createElearningDto, user);
   }
   @Post()
-  // @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER)
   create(@Body() createElearningDto: CreateElearningDto, @Req() request: Request) {
     const user: User = request['user'] ?? null;
     return this.ElearningService.create(createElearningDto, user);
   }
-
+  @Get('by-elearning/:id')
+  @Roles(Role.TEACHER)
+  async findByElearningId(@Param('id') id: number,@Req() request: Request) {
+    const user: User = request['user'] ?? null;
+    return this.ElearningService.findElearningVersionsByElearningID(id);
+  }
   @Get()
   // @Roles(Role.TEACHER)
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Elearning>, @Req() request: Request) {
     const user = request['user'] ?? null;
     return this.ElearningService.findAll(pageOptionDto, query, user);
   }
-  @Get('draftgroup/:id')
-  @Public()
-  async findByDraftGroupId(
-    @Param('id') id: string) {
-    return this.ElearningService.findByDraftGroupId(+id);
-  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ElearningService.findOne(+id);
   }
 
-  @Put(':id')
-  // @Roles(Role.TEACHER)
-  update(@Param('id') id: string, @Body() updateElearningDto: UpdateElearningDto) {
-    return this.ElearningService.update(+id, updateElearningDto);
-  }
+  // @Put(':id')
+  // // @Roles(Role.TEACHER)
+  // update(@Param('id') id: string, @Body() updateElearningDto: UpdateElearningDto) {
+  //   return this.ElearningService.update(+id, updateElearningDto);
+  // }
 
   @Delete(':id')
   // @Roles(Role.TEACHER)

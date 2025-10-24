@@ -22,8 +22,8 @@ export class CreateElearningDto extends OmitType(BaseDto, [] as const) {
     @IsNotEmpty()
     topicId: number;
     
-    @ApiProperty({ required: false})
-    @IsNumber()
-    @IsOptional()
-    draftGroupId?: number;
+    // @ApiProperty({ required: false})
+    // @IsNumber()
+    // @IsOptional()
+    // draftGroupId?: number;
 }
