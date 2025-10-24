@@ -40,6 +40,8 @@ import { GameModule } from './game/game.module';
 import { ElearningModule } from './elearning/elearning.module';
 import { MailModule } from './mail/mail.module';
 import { ForumCommentModule } from './forum-comment/forum-comment.module';
+import { ElearningVideoModule } from './elearning-video/elearning-video.module';
+import { ElearningThemeModule } from './elearning-theme/elearning-theme.module';
 
 @Module({
   imports: [
@@ -107,6 +109,8 @@ import { ForumCommentModule } from './forum-comment/forum-comment.module';
     GameQuestionModule,
     GameModule,
     ElearningModule,
+    ElearningVideoModule,
+    ElearningThemeModule,
     MailModule,
     ForumCommentModule
   ],

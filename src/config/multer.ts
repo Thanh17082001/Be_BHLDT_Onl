@@ -11,29 +11,33 @@ export const storage = (folder: string, isSplit: boolean = false) =>
         destination: (req, file, cb) => {
             // Đường dẫn động được truyền từ controller thông qua biến folder
             // ngoài thư mục dist
-            let uploadPath = path.join(__dirname, '..', '..', 'public', folder);
+            try {
+                let uploadPath = path.join(__dirname, '..', '..', 'public', folder);
 
-            // chia ra từng thư mục
-            if (isSplit) {
-                if (file.mimetype == 'application/pdf') {
-                    uploadPath = path.join(uploadPath, 'pdf');
-                } else if (file.mimetype == 'video/mp4') {
-                    uploadPath = path.join(uploadPath, 'video');
-                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.originalname.endsWith('.pptx')) {
-                    uploadPath = path.join(uploadPath, 'ptt');
-                } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
-                    uploadPath = path.join(uploadPath, 'word');
-                } else {
-                    uploadPath = path.join(uploadPath, 'image');
+                // chia ra từng thư mục
+                if (isSplit) {
+                    if (file.mimetype == 'application/pdf') {
+                        uploadPath = path.join(uploadPath, 'pdf');
+                    } else if (file.mimetype == 'video/mp4') {
+                        uploadPath = path.join(uploadPath, 'video');
+                    } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.originalname.endsWith('.pptx')) {
+                        uploadPath = path.join(uploadPath, 'ptt');
+                    } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
+                        uploadPath = path.join(uploadPath, 'word');
+                    } else {
+                        uploadPath = path.join(uploadPath, 'image');
+                    }
                 }
-            }
 
-            // Tạo thư mục nếu nó không tồn tại
-            if (!existsSync(uploadPath)) {
-                mkdirSync(uploadPath, { recursive: true });
-            }
+                // Tạo thư mục nếu nó không tồn tại
+                if (!existsSync(uploadPath)) {
+                    mkdirSync(uploadPath, { recursive: true });
+                }
 
-            cb(null, uploadPath); // Trả về đường dẫn lưu trữ
+                cb(null, uploadPath); // Trả về đường dẫn lưu trữ
+            } catch (error) {
+                console.log(error)
+            }
         },
         filename: (req, file, cb) => {
             // let decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');

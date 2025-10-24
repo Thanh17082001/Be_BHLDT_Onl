@@ -27,7 +27,15 @@ export class ElearningController {
   ) {
     return this.ElearningService.sendToEmail(elearningId, email, userName);
   }
-
+  @Post('auto-save')
+  @Roles(Role.TEACHER)
+  async autoSave(
+    @Body() createElearningDto: CreateElearningDto,
+    @Req() request: Request
+  ) {
+    const user: User = request['user'] ?? null;
+    return this.ElearningService.autoSave(createElearningDto, user);
+  }
   @Post()
   // @Roles(Role.TEACHER)
   create(@Body() createElearningDto: CreateElearningDto, @Req() request: Request) {

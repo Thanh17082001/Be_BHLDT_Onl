@@ -214,7 +214,7 @@ export class ElearningService {
   }
 
   async findOne(id: number): Promise<ItemDto<Elearning>> {
-    const example = await this.repo.findOne({ where: { id } });
+    const example = await this.repo.findOne({ where: { id }, relations: ['createdBy','subject'] });
     if (!example) {
       throw new HttpException('Not found', 404);
     }

@@ -36,6 +36,7 @@ export class ElearningVideoService {
     createElearningVideoDto: CreateElearningVideoDto,
     user: User,
   ): Promise<ElearningVideo> {
+    console.log(111)
     const { name, schoolId, path ,elearning_id, page, minetype} = createElearningVideoDto;
 
     createElearningVideoDto.schoolId = user?.school?.id;
@@ -66,6 +67,7 @@ export class ElearningVideoService {
 
   async update(id: number, updateElearningVideoDto: UpdateElearningVideoDto) {
     const { name, path, elearning_id, page } = updateElearningVideoDto;
+    console.log(name, path, elearning_id, page)
 
 
     const example: ElearningVideo = await this.repo.findOne({ where: { id } });
