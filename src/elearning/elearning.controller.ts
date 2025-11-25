@@ -2,7 +2,7 @@ import { ElearningService } from './elearning.service';
 import { CreateElearningDto } from './dto/create-elearning.dto';
 import { UpdateElearningDto } from './dto/update-elearning.dto';
 
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, Req, UseGuards, ParseIntPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { PageOptionsDto } from 'src/common/pagination/page-option-dto';
 import { Roles } from 'src/role/role.decorator';
 import { Role } from 'src/role/role.enum';
@@ -12,6 +12,7 @@ import { Elearning } from './entities/elearning.entity';
 import { Public } from 'src/auth/auth.decorator';
 import { AutosaveElearningDto } from './dto/autosave-elearning. copy';
 import { ElearningVersion } from 'src/elearning-version/entities/elearning-version.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('elearning')
 @UseGuards(RolesGuard)
@@ -24,13 +25,17 @@ export class ElearningController {
   ) { }
 
   @Post('send-to-email')
+  @UseInterceptors(FileInterceptor('file'))
   @Public()
   async sendToEmail(
-    @Body('elearningId') elearningId: number,
+    @UploadedFile() file: Express.Multer.File,
     @Body('email') email: string,
     @Body('userName') userName: string,
+    @Req() request: Request
   ) {
-    return this.ElearningService.sendToEmail(elearningId, email, userName);
+    const user: User = request['user'] ?? null;
+    console.log(file)
+    return this.ElearningService.sendToEmail(file, email, userName, user);
   }
   @Post('auto-save')
   @Roles(Role.TEACHER)

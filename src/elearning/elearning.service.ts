@@ -415,68 +415,15 @@ export class ElearningService {
     await this.repo.delete(id);
     return new ItemDto(await this.repo.delete(id));
   }
-  async sendToEmail(elearningId: number, email: string, userName: string) {
-    // 1️⃣ Lấy Elearning cùng version
-    const elearning = await this.repo.findOne({
-      where: { id: elearningId },
-      relations: ['createdBy', 'school', 'subject', 'elearningversions'],
-    });
-    if (!elearning) throw new NotFoundException('Không tìm thấy Elearning');
 
-    // 2️⃣ Lấy user nhận
-    const user = await this.repoUser.findOne({ where: { username: userName } });
-    if (!user) throw new NotFoundException('Không tìm thấy người dùng');
+  async sendToEmail(file: Express.Multer.File, email: string, userName: string, user:User) {
+    if (!file) throw new NotFoundException('Không có file được gửi lên');
+    if (!email) throw new NotFoundException('Không có email người nhận');
+    if (!userName) throw new NotFoundException('Không có userName');
 
-    // 3️⃣ Lấy version mới nhất
-    const versions = elearning.elearningversions ?? [];
-    if (versions.length === 0)
-      throw new NotFoundException('Elearning này chưa có nội dung (version)');
+    const safeFilename = file.originalname.replace(/[^\w\d._-]/g, '_');
 
-    const latestVersion = versions.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )[0];
-
-    // 🧩 Parse content an toàn (tránh lỗi "Unexpected token")
-    let content: any;
-    try {
-      content =
-        typeof latestVersion.content === 'string'
-          ? JSON.parse(latestVersion.content)
-          : latestVersion.content;
-    } catch (err) {
-      throw new Error('Nội dung Elearning không đúng định dạng JSON');
-    }
-
-    // 4️⃣ Tạo file PDF tạm trong bộ nhớ
-    const buffers: Buffer[] = [];
-    const doc = new PDFDocument({ autoFirstPage: false });
-
-    doc.on('data', buffers.push.bind(buffers));
-    const pdfPromise = new Promise<Buffer>((resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-    });
-
-    // 5️⃣ Vẽ từng trang từ canvas
-    for (const key of Object.keys(content)) {
-      const { canvasJSON } = content[key];
-      const canvas = new fabric.StaticCanvas(null, { width: 900, height: 550 });
-
-      await new Promise<void>((resolve) => {
-        canvas.loadFromJSON(canvasJSON, () => {
-          const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 });
-          const imgBuffer = Buffer.from(dataUrl.split(',')[1], 'base64');
-          doc.addPage({ size: [900, 550] });
-          doc.image(imgBuffer, 0, 0, { width: 900, height: 550 });
-          doc.text(`Trang ${Number(key) + 1}`, 20, 20);
-          resolve();
-        });
-      });
-    }
-
-    doc.end();
-    const pdfBuffer = await pdfPromise; // chờ PDF tạo xong
-
-    // 6️⃣ Gửi mail (dùng buffer thay vì path)
+    // 1️⃣ Gửi mail
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -488,21 +435,66 @@ export class ElearningService {
     await transporter.sendMail({
       from: `"Hệ thống Elearning" <hoangconghieu1903@gmail.com>`,
       to: email,
-      subject: `Tài liệu Elearning: ${elearning.title}`,
-      text: 'Đính kèm là file PDF nội dung bài học mới nhất.',
+      subject: `Tài liệu Elearning từ ${user.fullname}`,
+      text: 'Đính kèm là file Elearning bạn nhận được.',
       attachments: [
         {
-          filename: `${elearning.title}.pdf`,
-          content: pdfBuffer, // 👈 Gửi trực tiếp buffer, không cần file
+          filename: safeFilename,
+          content: file.buffer,
         },
       ],
     });
 
-    return {
-      message: 'Đã gửi email thành công',
-      // latestVersionId: latestVersion.id,
-    };
+    return { message: 'Đã gửi email thành công' };
   }
+  // Hàm build HTML từ Elearning content
+  private buildElearningHTML(title: string, content: any): string {
+    let html = `<html><head><meta charset="UTF-8"><title>${title}</title></head><body>`;
+    html += `<h2>${title}</h2>`;
+
+    for (const key of Object.keys(content)) {
+      const page = content[key];
+      const canvas = this.cleanCanvasJson(page.canvasJSON);
+
+      html += `<div style="position:relative; width:${page.canvasSize.width}px; height:${page.canvasSize.height}px; background:${canvas.background || '#fff'}; margin-bottom:20px; border:1px solid #ccc;">`;
+
+      for (const obj of canvas.objects) {
+        switch (obj.type) {
+          case 'Textbox':
+            html += `<div style="position:absolute; left:${obj.left}px; top:${obj.top}px; font-size:${obj.fontSize}px; color:${obj.fill}; font-family:${obj.fontFamily};">${obj.text}</div>`;
+            break;
+          case 'Rect':
+            html += `<div style="position:absolute; left:${obj.left}px; top:${obj.top}px; width:${obj.width}px; height:${obj.height}px; background:${obj.fill};"></div>`;
+            break;
+          case 'Image':
+            if (obj.src) {
+              // Đảm bảo src là base64 hoặc URL hợp lệ
+              html += `<img src="${obj.src}" style="position:absolute; left:${obj.left}px; top:${obj.top}px; width:${obj.width}px; height:${obj.height}px;" />`;
+            }
+            break;
+        }
+      }
+
+      html += `</div>`; // close page
+    }
+
+    html += `</body></html>`;
+    return html;
+  }
+
+  // Hàm cleanCanvasJson giữ nguyên
+  private cleanCanvasJson(json: any) {
+    if (!json || !json.objects) return json;
+    json.objects = json.objects.filter((obj: any) => {
+      if (obj.type === 'FabricTable') {
+        console.warn('⚠ Loại bỏ FabricTable vì Node không hỗ trợ.');
+        return false;
+      }
+      return true;
+    });
+    return json;
+  }
+
 
   async autoSave(createElearningDto: AutosaveElearningDto, user: User) {
     const { elearningId, content } = createElearningDto;
