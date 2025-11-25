@@ -75,7 +75,7 @@ export class TopicsService {
                 new Brackets((q) =>
                   q
                     .where('subject.id IN (:...subjectIds)', { subjectIds })
-                    .orWhere('topic.created_by = :created_by', { created_by: user.id }),
+                    .andWhere('topic.created_by = :created_by', { created_by: user.id }),
                 ),
               );
             }

@@ -31,6 +31,7 @@ export class UsersController {
         private readonly schoolService: SchoolsService,
         private readonly subjectService: SubjectsService
     ) { }
+
     @Post('import-excel')
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file'))
@@ -98,6 +99,100 @@ export class UsersController {
         }
     }
 
+    @Post('import-excel-byPRINCIPAL')
+    @Roles(Role.PRINCIPAL)
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('file'))
+    async ImportExeclByPRINCIPAL(
+        @UploadedFile() file: Express.Multer.File,
+        @Body() importFileExcel: ImportFileExcelUser,
+        @Req() request: Request
+    ) {
+        const user = request['user'] ?? null;
+
+        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        const users = XLSX.utils.sheet_to_json(worksheet);
+
+        // Mapping theo loại trường
+        const typeSchool = {
+            'THPT': ['10', '11', '12'],
+            'THCS': ['6', '7', '8', '9'],
+            'Tiểu học': ['1', '2', '3', '4', '5'],
+            'TH&THCS': ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            'THCS&THPT': ['6', '7', '8', '9', '10', '11', '12']
+        };
+
+        let arraySuccess = [];
+        let arrayFail = [];
+
+        let count = 0;
+
+        const schoolName = user.school.name;
+        const schoolType = user.school.schoolType;   // Ví dụ: 'THCS'
+        const gradeLevels = typeSchool[schoolType] || [];
+
+        // Tạo/tìm trường dựa theo user.school
+        const schoolId = await this.schoolService.findOrCreateByName(schoolName, schoolType);
+
+        // Tạo/tìm cấp học theo loại trường
+        const gradeIds = await this.gradeService.findOrCreateByNames(gradeLevels);
+
+        for (const row of users) {
+
+            const fullName = row['HỌ TÊN GIÁO VIÊN']?.toString().trim();
+
+            const subjectNames = row['MÔN HỌC']?.split(',')
+                .map((s: string) => s.trim().toLowerCase()) || [];
+
+            // Tạo hoặc tìm môn học theo cấp học
+            const subjectIds = await this.subjectService.findOrCreateByNames(
+                subjectNames,
+                gradeIds,
+                user.school.id,
+                user
+            );
+
+            try {
+                const userDto: CreateUserDto = {
+                    fullName,
+                    username: generateUsername(schoolType, schoolName, fullName),
+                    password: '1',
+                    role: 'Giáo viên',
+                    schoolId,
+                    gradeIds,
+                    subjectIds,
+                };
+
+                const createdUser = await this.userService.create(userDto);
+                count++;
+
+                arraySuccess.push({
+                    user: createdUser,
+                    index: count
+                });
+
+            } catch (error) {
+                arrayFail.push({
+                    rowData: row,
+                    error: error.response ?? error
+                });
+            }
+        }
+
+        return {
+            success: arraySuccess,
+            errors: arrayFail
+        };
+    }
+    @Post()
+    @Roles(Role.ADMIN, Role.PRINCIPAL) 
+    async createprincipalorteacher (@Body() createUserDto: CreateUserDto, @Req() request: Request) {
+        const user = await this.userService.create(createUserDto);
+        return user;
+    }
     @Post('admin')
     @Public()
     async create(@Body() createUserDto: CreateUserAdminDto) {
@@ -119,7 +214,17 @@ export class UsersController {
         };
         const user = await this.userService.create(userDto);
         return user;
-    } 
+    }
+    @Get('findallbyschool')
+    @Roles(Role.PRINCIPAL, Role.TEACHER)
+    async findAllBySchool(
+        @Query() pageOptions: PageOptionsDto,
+        @Query() query: Partial<User>,
+        @Req() request: Request
+    ): Promise<PageDto<User>> {
+        const user = request['user'] ?? null;
+        return this.userService.findAllBySchool(pageOptions, query, user);
+    }
     @Get()
     @Public()
     async findAll(

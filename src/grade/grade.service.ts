@@ -29,7 +29,7 @@ export class GradeService {
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<Grade>, user:User): Promise<PageDto<Grade>> {
-    const queryBuilder = this.repo.createQueryBuilder('grade').leftJoinAndSelect('grade.school', 'school');;
+    const queryBuilder = this.repo.createQueryBuilder('grade')
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
    

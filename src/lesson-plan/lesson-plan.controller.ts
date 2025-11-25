@@ -35,9 +35,9 @@ export class LessonPlanController {
      if (file) {
        if (file.mimetype == 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.mimetype == 'application/vnd.ms-powerpoint') {
              createLessonPlanDto.path = `public/lesson-plan/ptt/${file.filename}`;
-             createLessonPlanDto.previewImage = 'public/default/image-ptt.jpg';
+             createLessonPlanDto.previewImage = '/public/default/image-ptt.jpg';
            } else if (file.mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimetype == 'application/msword') {
-             createLessonPlanDto.previewImage = 'public/default/image-word.jpg';
+             createLessonPlanDto.previewImage = '/public/default/image-word.jpg';
              createLessonPlanDto.path = `public/lesson-plan/word/${file.filename}`;
            } 
      }

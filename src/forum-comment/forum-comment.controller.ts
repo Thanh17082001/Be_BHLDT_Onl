@@ -19,28 +19,28 @@ export class ForumCommentController {
     const user: User = request['user'] ?? null;
     return this.forumCommentService.create(createForumCommentDto, user);
   }
-  @Get(':id')
+  @Get('findbyelearningid/:id')
   @Roles(Role.TEACHER)
   async findByElearningId(@Param('id') id: string) {
     return this.forumCommentService.findByElearningId(+id);
   }
-  @Get()
-  findAll() {
-    return this.forumCommentService.findAll();
-  }
+  // @Get()
+  // findAll() {
+  //   return this.forumCommentService.findAll();
+  // }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.forumCommentService.findOne(+id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.forumCommentService.findOne(+id);
+  // }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateForumCommentDto: UpdateForumCommentDto) {
-    return this.forumCommentService.update(+id, updateForumCommentDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateForumCommentDto: UpdateForumCommentDto) {
+  //   return this.forumCommentService.update(+id, updateForumCommentDto);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.forumCommentService.remove(+id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.forumCommentService.remove(+id);
+  // }
 }

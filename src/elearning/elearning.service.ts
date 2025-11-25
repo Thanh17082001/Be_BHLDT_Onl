@@ -84,7 +84,9 @@ export class ElearningService {
     user: User,
   ): Promise<Elearning> {
     const { title, subjectId, topicId, content } = createElearningDto;
-
+    console.log(
+      title, subjectId, topicId, content
+    )
     //Lấy school từ user (nếu có)
     const school = user?.school
       ? await this.repoSchool.findOne({ where: { id: user.school.id } })
@@ -232,7 +234,7 @@ export class ElearningService {
 
   async findAll(
     pageOptions: PageOptionsDto,
-    query: Partial<Elearning>,
+    query: any,
     user: User,
   ): Promise<PageDto<Elearning>> {
     try {
@@ -244,6 +246,7 @@ export class ElearningService {
         .leftJoinAndSelect('elearning.school', 'school')
         .leftJoinAndSelect('elearning.createdBy', 'createdBy')
         .leftJoinAndSelect('elearning.subject', 'subject')
+        .leftJoinAndSelect('subject.grade', 'grade')
         .leftJoinAndSelect('elearning.comments', 'comments')
         .leftJoinAndSelect('comments.createdBy', 'commentUser')
         .leftJoin('elearning.elearningversions', 'versions')
@@ -255,35 +258,47 @@ export class ElearningService {
 
       // 🎯 Lọc theo quyền người dùng
       if (user) {
-        const schoolTypesQuery = schoolTypes(user);
+        const schoolTypesQuery = schoolTypes(user); // mảng schoolType của user
+
         queryBuilder.andWhere(
           new Brackets((qb) => {
             if (user.role === Role.TEACHER) {
+              // Teacher: bài do chính họ tạo OR admin cùng cấp trường
               qb.where(
                 new Brackets((q) => {
-                  q.orWhere('elearning.created_by = :created_by', { created_by: user.id });
+                  q.orWhere('elearning.created_by = :userId', { userId: user.id });
                   q.orWhere(
-                    '(createdBy.role = :adminRole AND school.id = :schoolId)',
-                    { adminRole: Role.ADMIN, schoolId: user.school.id },
+                    'createdBy.role = :adminRole AND school.schoolType = :schoolType',
+                    { adminRole: Role.ADMIN, schoolType: user.school.schoolType },
                   );
                 }),
               );
             } else if (user.role === Role.PRINCIPAL) {
-              qb.where('school.id = :schoolId', { schoolId: user.school.id }).orWhere(
-                '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
-                { isAdmin: true, schoolTypesQuery },
+              // Principal: tất cả bài trong trường OR admin cùng cấp trường
+              qb.where(
+                new Brackets((q) => {
+                  q.orWhere('school.id = :schoolId', { schoolId: user.school.id });
+                  q.orWhere(
+                    'createdBy.role = :adminRole AND school.schoolType = :schoolType',
+                    { adminRole: Role.ADMIN, schoolType: user.school.schoolType },
+                  );
+                }),
               );
             } else if (user.role === Role.ADMIN) {
-              qb.where('1=1'); // ✅ Admin được phép xem tất cả
+              qb.where('1=1'); // Admin được xem tất cả
             }
           }),
         );
       }
-
+      if (query.gradeId) {
+        queryBuilder.andWhere('grade.id = :gradeId', {
+          gradeId: Number(query.gradeId),
+        });
+      }
       // 🎯 Lọc theo query params (title, subjectId, v.v)
       if (query && Object.keys(query).length > 0) {
         Object.keys(query).forEach((key) => {
-          if (key && !paginationKeys.includes(key)) {
+          if (key && key !== 'gradeId' && !paginationKeys.includes(key)) {
             queryBuilder.andWhere(`elearning.${key} = :${key}`, {
               [key]: query[key],
             });

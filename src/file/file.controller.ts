@@ -56,7 +56,7 @@ export class FileController {
       } else {
         const link: string = await resizeImage(file);
         createFileDto.path = `/public/image/${file.filename}`;
-        createFileDto.previewImage = ReplacePathFile(link);
+        createFileDto.previewImage = `/${ReplacePathFile(link)}`;
      
    }
     }

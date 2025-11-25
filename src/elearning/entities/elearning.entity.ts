@@ -18,7 +18,7 @@ export class Elearning extends BaseWithCreatedBy {
 
     @ManyToOne(() => Subject, { nullable: true })
     @JoinColumn({ name: "subjectId" })
-    subject?: Topic = null; @ManyToOne(() => School, { nullable: true })
+    subject?: Subject = null;
 
     @Column({ nullable: true })
     topic?: number = null;

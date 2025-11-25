@@ -23,12 +23,12 @@ export class UsersService {
 
     @InjectRepository(Subject)
     private readonly subjectRepository: Repository<Subject>,
-  ) {}
+  ) { }
   async create(
     createUserDto: CreateUserDto
   ) {
 
-    const { fullName, username, password, schoolId, gradeIds, subjectIds, role='Giáo viên', isAdmin } = createUserDto;
+    const { fullName, username, password, schoolId, gradeIds, subjectIds, role = 'Giáo viên', isAdmin } = createUserDto;
 
 
     // Tìm trường học
@@ -50,7 +50,7 @@ export class UsersService {
 
     if (existUser) {
       throw new BadRequestException('Tên tài khoản đã tồn tại');
-      }
+    }
 
 
     const user = await this.repo.save({
@@ -67,7 +67,8 @@ export class UsersService {
   }
 
   async findAll(pageOptions: PageOptionsDto, query: Partial<User>): Promise<PageDto<User>> {
-    const queryBuilder = this.repo.createQueryBuilder('user');
+    const queryBuilder = this.repo.createQueryBuilder('user')
+      .leftJoinAndSelect('user.school', 'school');
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search']
     if (!!query && Object.keys(query).length > 0) {
@@ -97,21 +98,61 @@ export class UsersService {
 
     return new PageDto(entities, pageMetaDto);
   }
+  async findAllBySchool(pageOptions: PageOptionsDto, query: Partial<User>, user: User): Promise<PageDto<User>> {
+    if (!user?.school) {
+      throw new BadRequestException('User không có school để lọc');
+    }
 
+    const queryBuilder = this.repo.createQueryBuilder('user')
+      .leftJoinAndSelect('user.school', 'school');
+
+    const { page, take, skip, order, search } = pageOptions;
+    const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
+
+    // Lọc theo school của user
+    queryBuilder.andWhere('user.schoolId = :schoolId', { schoolId: user.school.id });
+
+    // Lọc theo query gửi vào
+    if (query && Object.keys(query).length > 0) {
+      Object.keys(query).forEach((key) => {
+        if (key && !pagination.includes(key)) {
+          queryBuilder.andWhere(`user.${key} = :${key}`, { [key]: query[key] });
+        }
+      });
+    }
+
+    // Search
+    if (search) {
+      queryBuilder.andWhere(`LOWER(unaccent(user.fullName)) ILIKE LOWER(unaccent(:search))`, {
+        search: `%${search}%`,
+      });
+    }
+
+    // Order + pagination
+    queryBuilder.orderBy('user.createdAt', order)
+      .skip(skip)
+      .take(take);
+
+    const itemCount = await queryBuilder.getCount();
+    const pageMetaDto = new PageMetaDto({ pageOptionsDto: pageOptions, itemCount });
+    const { entities } = await queryBuilder.getRawAndEntities();
+
+    return new PageDto(entities, pageMetaDto);
+  }
   async findOne(username: string): Promise<User> {
-    console.log(username,'thienhahaha');
-    const user = await this.repo.findOne({ where: { username }});
+    console.log(username, 'thienhahaha');
+    const user = await this.repo.findOne({ where: { username } });
     if (!user) {
       throw new HttpException('Not found', 404);
     }
     return user;
   }
 
-  
+
 
   async remove(id: number) {
     const user = this.repo.findOne({ where: { id } });
-    if(!user){
+    if (!user) {
       throw new NotFoundException('Không tìm thấy tài nguyên');
     }
     await this.repo.delete(id);

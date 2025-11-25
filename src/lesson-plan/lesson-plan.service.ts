@@ -32,7 +32,7 @@ export class LessonPlanService {
     @InjectRepository(School) private repoSchool: Repository<School>,
     @InjectRepository(Topic) private repoTopic: Repository<Topic>,
     @InjectRepository(Subject) private repoSubject: Repository<Subject>,
-  ) {}
+  ) { }
 
   async create(createLessonPlanDto: CreateLessonPlanDto, user) {
     console.log(1)
@@ -41,14 +41,14 @@ export class LessonPlanService {
     const school = await this.repoSchool.findOne({
       where: { id: createLessonPlanDto.schoolId ?? -1 },
     });
-   
-   
+
+
     const subject = await this.repoSubject.findOne({
       where: { id: +createLessonPlanDto.subjectId },
     });
-    
 
-   
+
+
     const LessonPlanTypeEntity = await this.repo.save({
       ...createLessonPlanDto,
       school,
@@ -60,18 +60,19 @@ export class LessonPlanService {
 
   async findAll(
     pageOptions: PageOptionsDto,
-    query: Partial<LessonPlan>,
+    query: any,
     user: User,
   ): Promise<PageDto<LessonPlan>> {
     const queryBuilder = this.repo
       .createQueryBuilder('lessonplan')
+      .leftJoinAndSelect('lessonplan.createdBy', 'createdBy')
       .leftJoinAndSelect('lessonplan.subject', 'subject')
-      
+      .leftJoinAndSelect('subject.grade', 'grade')
       .leftJoinAndSelect('lessonplan.school', 'school') // Lấy thông tin trường
       .leftJoinAndSelect('school.users', 'users')
       .leftJoinAndSelect('users.subjects', 'userSubjects') // Lấy danh sách giáo viên phụ trách môn học
-     
-      
+
+
     const { page, take, skip, order, search } = pageOptions;
     const pagination: string[] = ['page', 'take', 'skip', 'order', 'search'];
 
@@ -85,6 +86,7 @@ export class LessonPlanService {
             const subjectIds = user.subjects?.map((subject) => subject.id) || [];
             if (subjectIds.length > 0) {
               qb.where('subject.id IN (:...subjectIds)', { subjectIds })
+                .andWhere('lessonplan.created_by = :created_by', { created_by: user.id })
                 .orWhere(
                   '(school.isAdmin = :isAdmin AND school.schoolType IN (:...schoolTypesQuery))',
                   {
@@ -108,11 +110,17 @@ export class LessonPlanService {
         }),
       );
     }
-
+    console.log(query.gradeId)
+    if (query.gradeId) {
+      queryBuilder.andWhere('grade.id = :gradeId', {
+        gradeId: Number(query.gradeId),
+      });
+    }
     // 🎯 Thêm filter từ query params (không bao gồm pagination)
     if (!!query && Object.keys(query).length > 0) {
       Object.keys(query).forEach((key) => {
-        if (key && !pagination.includes(key)) {
+        if (key && key !== 'gradeId' && !pagination.includes(key)) {
+          // console.log(key)
           queryBuilder.andWhere(`lessonplan.${key} = :${key}`, {
             [key]: +query[key],
           });
@@ -153,7 +161,7 @@ export class LessonPlanService {
   }
 
   async update(id: number, updateLessonPlanDto: UpdateLessonPlanDto, user: User, isFile: boolean) {
-    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school','createdBy'] });
+    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school', 'createdBy'] });
     if (!lessonPlan) {
       throw new NotFoundException('Lesson plan not found');
     }
@@ -165,7 +173,7 @@ export class LessonPlanService {
       }
     }
 
-    console.log(updateLessonPlanDto,'tálkdjahsldkjahsd');
+    console.log(updateLessonPlanDto, 'tálkdjahsldkjahsd');
 
     const data = this.repo.merge(
       lessonPlan,
@@ -175,7 +183,7 @@ export class LessonPlanService {
   }
 
   async remove(id: number, user: User) {
-    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school','createdBy'] });
+    const lessonPlan = await this.repo.findOne({ where: { id }, relations: ['subject', 'school', 'createdBy'] });
     if (!lessonPlan) {
       throw new NotFoundException('Lesson plan not found');
     }
@@ -184,18 +192,18 @@ export class LessonPlanService {
       if (lessonPlan?.createdBy?.id !== user.id) {
         throw new ForbiddenException('Không có quyền');
       }
-        }
-    
+    }
+
 
     const oldPath = path.join(__dirname, '..', '..', lessonPlan.path);
     if (existsSync(oldPath) && lessonPlan.path) {
       unlinkSync(oldPath);
     }
-   
 
-    
+
+
     return await this.repo.remove(lessonPlan);
   }
 
-  
+
 }

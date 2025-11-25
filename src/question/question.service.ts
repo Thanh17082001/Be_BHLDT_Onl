@@ -207,7 +207,7 @@ export class QuestionService {
     const { content, score } = updateQuestionDto;
 
 
-    const example: Question = await this.repo.findOne({ where: { id } });
+    const example: Question = await this.repo.findOne({ where: { id }, relations: ['createdBy', 'school'] });
     console.log(example);
 
     if (!example) {

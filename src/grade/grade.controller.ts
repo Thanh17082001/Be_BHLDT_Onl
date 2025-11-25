@@ -34,7 +34,6 @@ export class GradeController {
 
   @Get()
   @Roles(Role.TEACHER)
-
   async findAll(@Query() pageOptionDto: PageOptionsDto, @Query() query: Partial<Grade>, @Req() request: Request) {
     const user = request['user'] ?? null;
     return this.gradeService.findAll(pageOptionDto, query, user);
