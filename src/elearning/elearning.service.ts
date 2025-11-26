@@ -435,7 +435,7 @@ export class ElearningService {
     await transporter.sendMail({
       from: `"Hệ thống Elearning" <hoangconghieu1903@gmail.com>`,
       to: email,
-      subject: `Tài liệu Elearning từ ${user.fullname}`,
+      subject: `Tài liệu Elearning từ ${user?.fullname}`,
       text: 'Đính kèm là file Elearning bạn nhận được.',
       attachments: [
         {
@@ -507,8 +507,15 @@ export class ElearningService {
     if (!elearning) {
       throw new NotFoundException('Không tìm thấy Elearning gốc');
     }
+    // Kiểm tra quyền sửa
+    if (!user.isAdmin) {
+      if (user.id !== elearning.createdBy.id) {
+        throw new ForbiddenException('Không có quyền sửa')
+      }
+    }
 
-    // 2️⃣ Tạo mới ElearningVersion
+
+    // Tạo mới ElearningVersion
     const newVersion = this.repoElearningVersion.create({
       content,
       elearning: elearning,

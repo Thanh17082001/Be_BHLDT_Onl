@@ -171,7 +171,7 @@ export class SubjectsService {
     user,
   ): Promise<number[]> {
     if (!gradeIds.length || !names.length) {
-      return [];
+      throw new Error('Danh sách tên hoặc khối lớp trống');
     }
 
     // Lấy danh sách khối lớp hợp lệ
@@ -179,21 +179,30 @@ export class SubjectsService {
     if (!grades.length) {
       throw new Error('Không tìm thấy khối lớp hợp lệ');
     }
+    console.log(names);
 
     const school = await this.repoSchool.findOne({ where: { id: schoolId } });
-
-    // Chuẩn hóa danh sách tên môn học theo `name + grade.name`
+       // Chuẩn hóa danh sách tên môn học theo `name + grade.name`
     const formattedNames = grades.flatMap((grade) =>
       names.map((name) => `${name} ${grade.name}`),
     );
 
-    // Lấy danh sách môn học đã tồn tại theo `name + grade.name`
+
+    // Lấy danh sách môn học đã tồn tại theo `name + grade.name` theo trường và môn do admin tạo
     const existingSubjects = await this.repo.find({
-      where: formattedNames.map((fullName) => ({
-        name: fullName,
-        school: { id: schoolId },
-      })),
-      relations: ['grade'],
+      where: formattedNames.flatMap((fullName) => [
+        // Trường hợp 1: Môn học của trường
+        {
+          name: fullName,
+          school: { id: schoolId },
+        },
+        // Trường hợp 2: Môn học do Admin tạo
+        {
+          name: fullName,
+          createdBy: { isAdmin: true },
+        },
+      ]),
+      relations: ['grade' ,'createdBy'],
       select: ['id', 'name', 'grade'],
     });
 

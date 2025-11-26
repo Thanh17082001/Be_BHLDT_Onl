@@ -24,7 +24,6 @@ import { PageDto } from 'src/common/pagination/page.dto';
 @Controller('user')
 @UseGuards(RolesGuard)
 @Roles(Role.ADMIN)
-
 export class UsersController {
     constructor(private readonly userService: UsersService,
         private readonly gradeService: GradeService,
@@ -64,6 +63,8 @@ export class UsersController {
             const schoolName = row['TÊN TRƯỜNG']?.toString().trim();
             const gradeLevels = typeSchool[row['LOẠI TRƯỜNG']] || [];
             const subjectNames = row['MÔN HỌC']?.split(',').map((s: string) => s.trim().toLowerCase()) || [];
+            console.log(subjectNames,row);
+
             // Tạo hoặc tìm trường
             const schoolId = await this.schoolService.findOrCreateByName(schoolName, row['LOẠI TRƯỜNG']);
             // Tạo hoặc tìm các cấp học
@@ -71,6 +72,7 @@ export class UsersController {
 
             // // Tạo hoặc tìm các môn học
             const subjectIds = await this.subjectService.findOrCreateByNames(subjectNames, gradeIds, user.school.id, user);
+            console.log('đaaaaausaduasdasdasd', subjectIds);
             try {
                 const userDto: CreateUserDto = {
                     fullName,

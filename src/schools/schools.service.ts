@@ -136,10 +136,11 @@ export class SchoolsService {
         }
         grades.push(grade);
       }
-      // Tạo mới nếu không tìm thấy
-      school = this.repo.create({ name: name, schoolType: typeSchool });
-      await this.repo.save(school);
+      // // Tạo mới nếu không tìm thấy
+      // school = this.repo.create({ name: name, schoolType: typeSchool });
+      school =await this.repo.save({ name: name, schoolType: typeSchool });
     }
+
 
     return school.id; // Trả về id của trường đã tìm thấy hoặc mới tạo
   }
