@@ -416,10 +416,42 @@ export class ElearningService {
     return new ItemDto(await this.repo.delete(id));
   }
 
-  async sendToEmail(file: Express.Multer.File, email: string, userName: string, user:User) {
+  async sendToEmail(file: Express.Multer.File, elearningId: number, email: string, userName: string, user: User) {
+    const elearning = await this.repo.findOne({
+      where: { id: elearningId },
+      relations: ['createdBy', 'school', 'subject', 'elearningversions', 'elearningversions.createdBy'],
+    });
+    if (!elearning) throw new NotFoundException('Elearning not found');
     if (!file) throw new NotFoundException('Không có file được gửi lên');
     if (!email) throw new NotFoundException('Không có email người nhận');
     if (!userName) throw new NotFoundException('Không có userName');
+    const checkUsername = await this.repoUser.findOne({ where: { username: userName } });
+    if (!checkUsername) throw new NotFoundException('User not found');
+
+    const versions = elearning.elearningversions ?? [];
+    if (!versions.length) throw new NotFoundException('Elearning chưa có version');
+
+    const latestVersion = [...versions].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
+
+    const cloned = this.repo.create({
+      title: `${elearning.title} - Bản sao`,
+      school: elearning.school,
+      subject: elearning.subject,
+      topic: elearning.topic,
+      createdBy: checkUsername,
+      currentversion: 1,
+    });
+    await this.repo.save(cloned);
+
+    const newVersion = this.repoElearningVersion.create({
+      content: latestVersion.content,
+      elearning: cloned,
+      createdBy: checkUsername,
+    });
+    await this.repoElearningVersion.save(newVersion);
+
 
     const safeFilename = file.originalname.replace(/[^\w\d._-]/g, '_');
 

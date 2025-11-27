@@ -26,16 +26,17 @@ export class ElearningController {
 
   @Post('send-to-email')
   @UseInterceptors(FileInterceptor('file'))
-  @Public()
+  @Roles(Role.TEACHER, Role.PRINCIPAL, Role.SUPER_ADMIN)
   async sendToEmail(
     @UploadedFile() file: Express.Multer.File,
+    @Body('elearningId') elearningId: number,
     @Body('email') email: string,
     @Body('userName') userName: string,
     @Req() request: Request
   ) {
     const user: User = request['user'] ?? null;
     console.log(file)
-    return this.ElearningService.sendToEmail(file, email, userName, user);
+    return this.ElearningService.sendToEmail(file, elearningId, email, userName, user);
   }
   @Post('auto-save')
   @Roles(Role.TEACHER)
